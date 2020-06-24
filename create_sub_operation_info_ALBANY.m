@@ -115,6 +115,9 @@ labels= [arrayfun(@(x) sprintf('LG_%d',x),[1:64]','uniformoutput',false);...
         'GND';'GND'];
 
 op_info.channel_labels=labels;
+op_info.analyzed_by_user=0;
+op_info.analyzed_by_user_name='Lana';
+
 op_info.seizure_channels=[121,122,105,106,87,95,96];
 op_info.exp_name='';
 eval(strcat(op_info.subject_name,'_op','.op_info=op_info'));
