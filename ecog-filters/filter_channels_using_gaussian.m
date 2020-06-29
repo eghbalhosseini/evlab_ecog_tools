@@ -270,7 +270,7 @@ parfor idx_channel=1:size(signal,2)
 end
 fprintf(1,'] done\n');
 
-%% high gamma based on chang-lab 
+%% gaussian band based on chang-lab 
 bands = {'theta', 'alpha', 'beta', 'gamma', 'high_gamma','broad_band'};
 min_freqs = [4., 8., 15., 30., 70.,4.];
 max_freqs = [7., 14., 29., 58., 150.,150];
@@ -361,7 +361,6 @@ end
 %% downsample states 
 %% down-sample signal
 fprintf(1, '>> Down-sampling states \n');
-%
 
 %     % decimate StimulusCode to 12 Hz
 states.StimType_ds = downsample(double(states.StimType),ops.decimation_factor);
@@ -369,8 +368,6 @@ states.WordType_ds = downsample(double(states.WordType),ops.decimation_factor);
 states.IsRight_ds  = downsample(double(states.IsRight),ops.decimation_factor);
 states.Response_ds = downsample(double(states.Response),ops.decimation_factor);
 states.StimulusCodeDownsample=downsample(double(states.StimulusCode),ops.decimation_factor);
-
-
 
 %% 
 ops_out=ops;

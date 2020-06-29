@@ -1,6 +1,4 @@
 % function for extraction of subject information for each experiments, 
-
-
 % Eghbal Hosseini, 24/06/2020
 % changelog: 
 % HannaH 
