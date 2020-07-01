@@ -143,33 +143,35 @@ for idx=1:length(StimTypeListText),
     end
 end
     
-IsRightLabels = unique(IsRightListText); 
-    
-% new data format
-if strcmp(IsRightLabels{2},'0') && strcmp(IsRightLabels{3},'1')
-    
-    for idx=1:length(IsRightListText),
-        if strcmp(IsRightListText{idx},'1'),
-            IsRightList(idx) = 1;
-        elseif strcmp(IsRightListText{idx},'0'),
-            IsRightList(idx) = 2;
-        else
-            IsRightList(idx) = -1;
+IsRightLabels = unique(IsRightListText);
+
+if ~isempty(IsRightLabels) %only if these exist -HS
+    % new data format
+    if strcmp(IsRightLabels{2},'0') && strcmp(IsRightLabels{3},'1')
+
+        for idx=1:length(IsRightListText),
+            if strcmp(IsRightListText{idx},'1'),
+                IsRightList(idx) = 1;
+            elseif strcmp(IsRightListText{idx},'0'),
+                IsRightList(idx) = 2;
+            else
+                IsRightList(idx) = -1;
+            end
         end
-    end
-    
-else
-    
-    for idx=1:length(IsRightListText),
-        if strcmp(IsRightListText{idx},'RIGHT'),
-            IsRightList(idx) = 1;
-        elseif strcmp(IsRightListText{idx},'WRONG'),
-            IsRightList(idx) = 2;
-        else
-            IsRightList(idx) = -1;
+
+    else
+
+        for idx=1:length(IsRightListText),
+            if strcmp(IsRightListText{idx},'RIGHT'),
+                IsRightList(idx) = 1;
+            elseif strcmp(IsRightListText{idx},'WRONG'),
+                IsRightList(idx) = 2;
+            else
+                IsRightList(idx) = -1;
+            end
         end
+
     end
-    
 end
     
 index_valid            = find(states.StimulusCode > 0);
