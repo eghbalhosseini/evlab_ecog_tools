@@ -115,7 +115,8 @@ fprintf(1,'] done\n');
 
 index_StimType = find(strcmp(parameters.Stimuli.RowLabels,'StimType'));
 index_WordType = find(strcmp(parameters.Stimuli.RowLabels,'Condition'));
-index_IsRight = find(strcmp(parameters.Stimuli.RowLabels,'IsRight'));
+index_IsRight = find(strcmp(parameters.Stimuli.RowLabels,'IsRight') |...
+strcmp(parameters.Stimuli.RowLabels,'IsProbeCorrect')) ;
 if isempty(index_WordType)
     index_WordType = 7;
 end
