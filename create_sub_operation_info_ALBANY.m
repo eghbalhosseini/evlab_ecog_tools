@@ -5,7 +5,7 @@
 % TODO: fix the routine for making tree
 function ops_out=create_sub_operation_info_ALBANY(varargin)
 p=inputParser();
-addParameter(p, 'experiment', 'nlength');
+addParameter(p, 'experiment', 'MITNLengthSentences');
 addParameter(p, 'overwrite_all', false);
 %addParameter(p, 'n_feat', 28*28);
 %addParameter(p, 'beta', 0.01);
@@ -16,9 +16,10 @@ addParameter(p, 'overwrite_all', false);
 parse(p, varargin{:});
 ops = p.Results;
 % library of experiment names and subjects 
+generate_all_sub();
 albany_exp=struct;
 exp_dat={...
-        {'nlength',arrayfun(@(x) sprintf('AMC%03d',x),[82,83,86,91,92,96,97,99],'uniformoutput',false)};...
+        {'MITNLengthSentences',arrayfun(@(x) sprintf('AMC%03d',x),[82,83,86,91,92,96,97,99],'uniformoutput',false)};...
         {'langloc',arrayfun(@(x) sprintf('AMC%03d',x),[82,86,88,91,92,96,97,99],'uniformoutput',false)};...
         }; 
 end 
@@ -35,13 +36,13 @@ function exp_info=get_exp_for_sub(sub_id)
     
 end 
 % creating a dictionarry of all the subjects and their information 
-function all_sub_info=genetera_all_sub_info()
-    %% AMC026
+function all_sub_info=generate_all_sub_info()
+    %% AMC082
     all_sub_data=struct;
     sub_dat={{'sub_id'},{'AMC082'};...
             {'GND'},{[47]};...
             {'REF'},{[1]};...
-            {'num_chanel'},{[1]};...
+            {'num_channels'},{[1]};...
             {'bad_channels'},{[1]};...
             {'ecog_channels'},{[1]};...
             {'skull_eeg_channels'},{[1]};...
@@ -196,13 +197,11 @@ labels= [arrayfun(@(x) sprintf('LG_%d',x),[1:64]','uniformoutput',false);...
         'GND';'GND'];
 
 op_info.channel_labels=labels;
-op_info.analyzed_by_user=0;
-op_info.analyzed_by_user_name='Lana';
+op_info.visually_inspected = 0;
 
 op_info.seizure_channels=[121,122,105,106,87,95,96];
-op_info.exp_name='';
 eval(strcat(op_info.subject_name,'_op','.op_info=op_info'));
-save(strcat(save_path,op_info.subject_name,'_operation_info.mat'),strcat(op_info.subject_name,'_op'),'-v7.3');
+save(strcat('~/Desktop/ECOG/subject_op_info_MASTER/',op_info.subject_name,'_operation_info.mat'),strcat(op_info.subject_name,'_op'),'-v7.3');
 % op_info=struct;
 % op_info.subject_name='AMC082';
 % 
