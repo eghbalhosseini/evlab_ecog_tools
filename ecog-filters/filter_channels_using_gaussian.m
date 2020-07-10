@@ -6,41 +6,15 @@ addParameter(p, 'op_info', struct);
 parse(p, varargin{:});
 ops = p.Results;
 if ~isempty(ops.op_info)
-    ref_ch=ops.op_info.Ref;
-    gnd_ch=ops.op_info.GND;
-    bad_ch=ops.op_info.bad_channels;
-    unselected_ch=ops.op_info.unselected_channels;
-    transmit_ch=ops.op_info.transmit_chan;
-    clean_ch=ops.op_info.clean_channels;
-    sampling_rate=ops.op_info.sampling_rate;
+    f=fields(ops.op_info)';
+    for i =f ,eval(sprintf('%s=ops.op_info.%s;',i{1},i{1})); end 
 else
     error('error: this function requires subj_op_info to run!');
 end
-
-ecog.param.filter_car  = 1;     % 0 == off % 1 == on
-ecog.param.filter_type = 'IIR'; % IIR | FIR                             
-ecog.param.topo_size   = [2,3];
-% --- highpass filter --- 
-ecog.param.highpass.Wp = 0.50; % Hz
-ecog.param.highpass.Ws = 0.05; % Hz
-ecog.param.highpass.Rp = 3;    % dB
-ecog.param.highpass.Rs = 30;   % dB
-
-% --- lowpass filter --- 
-ecog.param.lowpass.Wp = 100;     % Hz
-ecog.param.lowpass.Ws = 110;     % Hz
-ecog.param.lowpass.Rp = 3;     % dB
-ecog.param.lowpass.Rs = 30;    % dB
-
-%---- downsampling rate ----
-ops.samplingrate = 300; % decimation sampling rate 
-param=ecog.param;
-param.channels=transmit_ch;
-[ ~, ~, parameters ] = load_bcidat(ops.datafile,[0 0]);
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% DEFINE HIGH-PASS FILTERS
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% define passband, stopband and attenuation
+%% 
+param=ops.op_info.filter_param;
+ops.downsamplingrate = 300; % decimation sampling rate 
+% 
 highpass{1}.Wp = param.highpass.Wp/(sampling_rate/2); 
 highpass{1}.Ws = param.highpass.Ws/(sampling_rate/2);
 highpass{1}.Rp = param.highpass.Rp; 
@@ -52,43 +26,13 @@ highpass{1}.n = highpass{1}.n + rem(highpass{1}.n,2);
 [highpass{1}.z,highpass{1}.p,highpass{1}.k] = butter(highpass{1}.n,highpass{1}.Wn,'high');
 [highpass{1}.sos,highpass{1}.g]=zp2sos(highpass{1}.z,highpass{1}.p,highpass{1}.k);
 highpass{1}.h=dfilt.df2sos(highpass{1}.sos,highpass{1}.g);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% DEFINE LOW-PASS FILTERS
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% define passband, stopband and ripples 
-lowpass{1}.Wp = param.lowpass.Wp/(parameters.SamplingRate.NumericValue/2); 
-lowpass{1}.Ws = param.lowpass.Ws/(parameters.SamplingRate.NumericValue/2);
-lowpass{1}.Rp = param.lowpass.Rp; 
-lowpass{1}.Rs = param.lowpass.Rs;
-% calculate the minimum filter order
-[lowpass{1}.n,lowpass{1}.Wn] = buttord(lowpass{1}.Wp,lowpass{1}.Ws,lowpass{1}.Rp,lowpass{1}.Rs);
-lowpass{1}.n = lowpass{1}.n + rem(lowpass{1}.n,2);
-% caclulate the filter coefficients in Zero-Pole-Gain design
-[lowpass{1}.z,lowpass{1}.p,lowpass{1}.k] = butter(lowpass{1}.n,lowpass{1}.Wn,'low');
-[lowpass{1}.sos,lowpass{1}.g]=zp2sos(lowpass{1}.z,lowpass{1}.p,lowpass{1}.k);
-lowpass{1}.h=dfilt.df2sos(lowpass{1}.sos,lowpass{1}.g);
- 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% DEFINE LINE-NOISE FILTERS
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-peak.fcenter = 60;
-peak.bw      = 0.001;
-% calculate the IIR-peak filter coefficients in a,b format 
-peak.wo = peak.fcenter/(sampling_rate/2);  
-peak.bw = peak.bw;
-[peak.b,peak.a] = iirpeak(peak.wo,peak.bw);  
-% define the harmonics of line noise frequency
-param.filter.notch.fcenter = [60,120,180,240];
-param.filter.notch.bw      = ones(1,length(param.filter.notch.fcenter)).*0.001;
+% 
 % calculate the IIR-peak filter coefficients in a,b format 
 for idx = 1:length(param.filter.notch.fcenter),
     notch{idx}.wo = param.filter.notch.fcenter(idx)/(sampling_rate/2);  
     notch{idx}.bw = param.filter.notch.bw(idx);
     [notch{idx}.b,notch{idx}.a] = iirnotch(notch{idx}.wo,notch{idx}.bw);  
 end
-
-% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % LOAD AND CONCATENATE DATA
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -102,7 +46,7 @@ states.Response = [];
 % load data file
 fprintf(1, '>> Loading data file %s \n',ops.datafile);
 [ signal_loop, states, parameters ] = load_bcidat(ops.datafile);
-signal=signal_loop(:,ops.op_info.transmit_chan);
+signal=signal_loop(:,clean_channels);
 % highpass filter
 fprintf(1, '>> Highpass filtering signal \n');
 fprintf(1,'[');
@@ -233,19 +177,20 @@ if isfield(parameters,'DeviceIDMaster')
         idx_high = (idx_amp-0)*16+0;
 
         % exclude the channels that had signifiant line-noise
-        list_channels = intersect(idx_low:idx_high,ops.op_info.clean_channels);
+        list_channels = ismember(clean_channels,idx_low:idx_high);
+        list_channels=find(list_channels);
         % check if any channels are left and 
-        if ~isempty(list_channels) && length(list_channels)>1    
-            % calculate the common average reference signal 
+        if ~isempty(list_channels) && length(list_channels)>1
+            % calculate the common average reference signal
             signal_mean = mean(signal(:,list_channels),2);
             % subtract the common average signal from each channel of this amp
-            for idx_ch=idx_low:idx_high,
+            for idx_ch=list_channels
                 signal(:,idx_ch) = signal(:,idx_ch) - signal_mean;
                 fprintf(1,'.');
             end
-        else
+           else
             % if no channel is left then the signal is not filtered
-            for idx_ch=idx_low:idx_high,
+            for idx_ch=list_channels
                 signal(:,idx_ch) = signal(:,idx_ch);
                 fprintf(1,'.');
             end
@@ -290,7 +235,7 @@ ops.gaus_filt_defs=gaus_filt_defs;
 % ?The Control of Vocal Pitch in Human Laryngeal Motor Cortex.? Cell 174 (1): 21?31.e9.
 fprintf(1, '>> Extracting and decimationg envelopes based on chang-lab method  \n');
 band_idx=find(~strcmp(bands,'broad_band'));
-decimation_factor = parameters.SamplingRate.NumericValue / ops.samplingrate;
+decimation_factor = parameters.SamplingRate.NumericValue / ops.downsamplingrate;
 ops.decimation_factor=decimation_factor;
 
 signal_gaus_bands=struct;
