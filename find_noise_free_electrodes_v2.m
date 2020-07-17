@@ -3,8 +3,11 @@ p=inputParser();
 addParameter(p, 'datafile', 'test');
 addParameter(p, 'op_info', struct);
 addParameter(p, 'exp_name', 'test');
+addParameter(p, 'save_plots', false);
+addParameter(p, 'plot_save_path', '~/ECOG/crunched/plots/');
 parse(p, varargin{:});
-ops = p.Results;    
+ops = p.Results; 
+save('ops_here','ops')
 
 if ~isempty(ops.op_info)
     f=fields(ops.op_info)';
@@ -124,7 +127,9 @@ session_length=[1;session_length];
 session_start=cumsum(session_length);
 param.channels_deselect = []; %no channels deselected yet!
 fprintf('Visually inspect the pre- line noise removal and common source averaging signal \n')
-plot_signal_over_time(signal,param,session_start,'pre-common source averaging')
+print_figure = false;
+figure_label = "";
+%plot_signal_over_time(signal,param,session_start,'pre-common source averaging', ops.save_plots,print_figure, ops.plot_save_path, figure_label,ops.op_info.sub_id)
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MEASURE LINE-NOISE POWER BEFORE SIGNAL PROCESSING
@@ -274,23 +279,32 @@ end
 fprintf(1,'] done\n');
 %% plot post filtering 
 fprintf('Visually inspect the post filtering signal for manual noisy channel removal \n');
-plot_signal_over_time(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering')
+print_figure = true;
+figure_label = "PRE-REMOVAL";
+plot_signal_over_time(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering',ops.save_plots,print_figure, ops.plot_save_path,figure_label,ops.op_info.sub_id)
+print_figure = false;
+figure_label = "";
 %% 
 x = 1;
 channels_removed_automatically = param.channels_deselect;
 channels_removed_manually = [];
+num_removals = 0;
 while ~isempty(x)
     prompt='Additional channels to remove? Format: [1,2] or [1:10, 20:25, 31] (if you are done removing channels, press Enter)  \n';
     x=input(prompt);
     if ~isempty(x)
          %save the channels that were automatically removed due to noise
         fprintf(['Removing channels... \n\n']);
+        num_removals = num_removals + 1;
         channels_removed_manually = [channels_removed_manually x];
         param.channels_deselect=sort([param.channels_deselect,x]); %all channels that are being removed, including the user specified channels and channels removed due to noise
         param.channels_selected = setdiff(param.channels,param.channels_deselect);
         fprintf('visually inspect signal for manual channel removal \n');
-        plot_signal_over_time(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering and manual removal of channels')
-        
+        print_figure = true;
+        figure_label = ["POST-REMOVAL_", num2str(num_removals)];
+        plot_signal_over_time(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering and manual removal of channels',ops.save_plots,print_figure,ops.plot_save_path,figure_label,ops.op_info.sub_id);
+        print_figure = false;
+        figure_label = "";
     end
 end
 
@@ -318,7 +332,7 @@ ops_out=ops;
 fprintf('done \n');
 end 
 
-function []= plot_signal_over_time(signal,param,session_start,plot_title)
+function []= plot_signal_over_time(signal,param,session_start,plot_title,save_plots,print_figure,save_path, figure_label, sub_id)
     fprintf('Figure is loading... \n');
     fprintf('Figure will advance through time when you press any key.\n')
     t_length=25e4;
@@ -332,10 +346,12 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title)
     x_norm_cell=cellfun(@(x) (x-min_max(1))./(.5*(min_max(2)-min_max(1))),x_cell,'UniformOutput',false);
     %
     figure(1);
+   
     
     col_inf=inferno(floor(.8*size(x_norm_cell,1)));
     col_vir=viridis(floor(.8*size(x_norm_cell,1)));
     colors=[col_vir(1:floor(size(x_norm_cell,1)/2),:);col_inf(1:(floor(size(x_norm_cell,1)/2)+1),:)];
+
     for kk=1:kk_total
         clf;
         set(0,'units','pixels');
@@ -358,8 +374,41 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title)
         end 
         shg;
         title({plot_title,[num2str(kk),' of ', num2str(kk_total)]})
-        pause
+        
+        
+        all_filenames = {};
+        
+        if(print_figure && save_plots)
+            filename = strcat(save_path, 'temp', num2str(kk), '.pdf');
+            all_filenames{kk,1} = strcat(save_path, filename);
+            
+            %f=gcf; ?
+            %f.Units='Inches';?
+            %f.PaperOrientation='portrait';?
+            %pos = get(gcf,'Position');?
+%             %letter_paper_ratio=11/8.5;?
+%             set(gcf,'PaperPositionMode','auto');
+%             set(gcf,'PaperUnits','inches');
+%             set(gcf,'PaperSize',[8.5,11])?;
+%             pos=gcf.Position;?
+%             set(gcf,'position',[ pos(1),pos(2),8.5,11])
+            set(gcf,'PaperOrientation', 'landscape');
+            print(gcf,'-painters','-fillpage', '-dpdf', filename);
+           % print(gcf,'-painters', '-depsc', strcat(analysis_path,info.subject,'/',info.subject,'_','fig_for_U01','.pdf'));
+
+        end      
+        %pause
     end
+
+    % set(gcf,'PaperPositionMode','auto'); %used to modify how we save the figure
+    if(print_figure && save_plots)
+        %concatenate all pdfs into single file
+        output_filename = strcat(save_path, sub_id, '_', figure_label,'.pdf')
+        append_pdfs(output_filename, all_filenames{:});
+        %print(output_filename)
+    end
+    
+
     
     close all;
 end
