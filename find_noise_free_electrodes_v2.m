@@ -280,7 +280,7 @@ fprintf(1,'] done\n');
 %% plot post filtering 
 fprintf('Visually inspect the post filtering signal for manual noisy channel removal \n');
 print_figure = true;
-figure_label = "PRE-REMOVAL";
+figure_label = "PRE-REMOVAL_";
 plot_signal_over_time(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering',ops.save_plots,print_figure, ops.plot_save_path,figure_label,ops.op_info.sub_id)
 print_figure = false;
 figure_label = "";
@@ -301,7 +301,7 @@ while ~isempty(x)
         param.channels_selected = setdiff(param.channels,param.channels_deselect);
         fprintf('visually inspect signal for manual channel removal \n');
         print_figure = true;
-        figure_label = ["POST-REMOVAL_", num2str(num_removals)];
+        figure_label = strcat("POST-REMOVAL", num2str(num_removals), "_");
         plot_signal_over_time(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering and manual removal of channels',ops.save_plots,print_figure,ops.plot_save_path,figure_label,ops.op_info.sub_id);
         print_figure = false;
         figure_label = "";
@@ -333,6 +333,7 @@ fprintf('done \n');
 end 
 
 function []= plot_signal_over_time(signal,param,session_start,plot_title,save_plots,print_figure,save_path, figure_label, sub_id)
+    filename = "";
     fprintf('Figure is loading... \n');
     fprintf('Figure will advance through time when you press any key.\n')
     t_length=25e4;
@@ -352,7 +353,8 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
     col_vir=viridis(floor(.8*size(x_norm_cell,1)));
     colors=[col_vir(1:floor(size(x_norm_cell,1)/2),:);col_inf(1:(floor(size(x_norm_cell,1)/2)+1),:)];
 
-    for kk=1:kk_total
+    %all_filenames = {};
+    for kk=1:2%kk_total
         clf;
         set(0,'units','pixels');
         screen = get(0,'ScreenSize');
@@ -376,11 +378,15 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
         title({plot_title,[num2str(kk),' of ', num2str(kk_total)]})
         
         
-        all_filenames = {};
+       
         
         if(print_figure && save_plots)
-            filename = strcat(save_path, 'temp', num2str(kk), '.pdf');
-            all_filenames{kk,1} = strcat(save_path, filename);
+            if ~exist(strcat(save_path,'channel_plots'))
+                mkdir(strcat(save_path,'channel_plots'))
+            end
+            %filename = strcat(save_path, 'temp', num2str(kk), '.pdf');
+            filename = strcat(save_path, 'channel_plots', filesep, sub_id, '_', figure_label, num2str(kk),'.pdf')
+            %all_filenames{end+1} = strcat(save_path, filename);
             
             %f=gcf; ?
             %f.Units='Inches';?
@@ -394,6 +400,8 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
 %             set(gcf,'position',[ pos(1),pos(2),8.5,11])
             set(gcf,'PaperOrientation', 'landscape');
             print(gcf,'-painters','-fillpage', '-dpdf', filename);
+            %export_fig(filename, '-append');
+          
            % print(gcf,'-painters', '-depsc', strcat(analysis_path,info.subject,'/',info.subject,'_','fig_for_U01','.pdf'));
 
         end      
@@ -401,12 +409,14 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
     end
 
     % set(gcf,'PaperPositionMode','auto'); %used to modify how we save the figure
-    if(print_figure && save_plots)
+    %if(print_figure && save_plots)
         %concatenate all pdfs into single file
-        output_filename = strcat(save_path, sub_id, '_', figure_label,'.pdf')
-        append_pdfs(output_filename, all_filenames{:});
+    %    output_filename = strcat(save_path, sub_id, '_', figure_label,'.pdf')
+    %    output_filename
+    %    all_filenames
+    %    append_pdfs(output_filename, all_filenames{:});
         %print(output_filename)
-    end
+    %end
     
 
     
