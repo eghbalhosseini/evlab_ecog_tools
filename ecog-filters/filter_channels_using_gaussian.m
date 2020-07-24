@@ -12,7 +12,37 @@ else
     error('error: this function requires subj_op_info to run!');
 end
 %% 
-param=ops.op_info.filter_param;
+try param=ops.op_info.filter_param;
+catch err
+    ecog.param.filter_car  = 1;     % 0 == off % 1 == on
+    ecog.param.filter_type = 'IIR'; % IIR | FIR
+    
+    
+    % --- highpass filter ---
+    ecog.param.highpass.Wp = 0.50; % Hz
+    ecog.param.highpass.Ws = 0.05; % Hz
+    ecog.param.highpass.Rp = 3;    % dB
+    ecog.param.highpass.Rs = 30;   % dB
+    
+    % --- lowpass filter ---
+    ecog.param.lowpass.Wp = 100;     % Hz
+    ecog.param.lowpass.Ws = 110;     % Hz
+    ecog.param.lowpass.Rp = 3;     % dB
+    ecog.param.lowpass.Rs = 30;    % dB
+    
+    param=ecog.param;
+    peak.fcenter = 60;
+    peak.bw      = 0.001;
+    
+    % calculate the IIR-peak filter coefficients in a,b format
+    peak.wo = peak.fcenter/(sampling_rate/2);
+    peak.bw = peak.bw;
+    [peak.b,peak.a] = iirpeak(peak.wo,peak.bw);
+    
+    % define the harmonics of line noise frequency
+    param.filter.notch.fcenter = [60,120,180,240];
+    param.filter.notch.bw      = ones(1,length(param.filter.notch.fcenter)).*0.001;
+end
 ops.downsamplingrate = 300; % decimation sampling rate 
 % 
 highpass{1}.Wp = param.highpass.Wp/(sampling_rate/2); 
@@ -46,7 +76,8 @@ states.Response = [];
 % load data file
 fprintf(1, '>> Loading data file %s \n',ops.datafile);
 [ signal_loop, states, parameters ] = load_bcidat(ops.datafile);
-signal=signal_loop(:,clean_channels);
+%signal=signal_loop(:,clean_channels);
+signal=signal_loop;
 % highpass filter
 fprintf(1, '>> Highpass filtering signal \n');
 fprintf(1,'[');
@@ -177,8 +208,7 @@ if isfield(parameters,'DeviceIDMaster')
         idx_high = (idx_amp-0)*16+0;
 
         % exclude the channels that had signifiant line-noise
-        list_channels = ismember(clean_channels,idx_low:idx_high);
-        list_channels=find(list_channels);
+        list_channels = intersect(clean_channels,idx_low:idx_high);
         % check if any channels are left and 
         if ~isempty(list_channels) && length(list_channels)>1
             % calculate the common average reference signal
