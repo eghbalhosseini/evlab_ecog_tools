@@ -3,7 +3,7 @@ clear all;
 close all;
 home;
 experiment_name ='MITNLengthSentences';
-subject_name='AMC082';
+subject_name='AMC083';
 %%
 on_openmind = 0;
 [ignore,user]=system('whoami');
@@ -276,6 +276,7 @@ for i=1:length(d_files)
         trial.(strcat('signal','_pre_trial','_hilbert_zs_downsample'))=signal_hilbert_zs_downsample(:,stimuli_downsample_range(1)+[-info.pre_trial_samples_downsample:-1]);
         trial.(strcat('signal_ave','_pre_trial','_hilbert_downsample'))=nanmean(signal_hilbert_downsample(:,stimuli_downsample_range(1)+[-info.pre_trial_samples_downsample:-1]),2);
         trial.(strcat('signal_ave','_pre_trial','_hilbert_zs_downsample'))=nanmean(signal_hilbert_zs_downsample(:,stimuli_downsample_range(1)+[-info.pre_trial_samples_downsample:-1]),2);
+        pre_trial_idx=stimuli_downsample_range(1)+[-info.pre_trial_samples_downsample:-1];
         trial.(strcat('signal','_pre_trial','_gaus_band_hilb_dec'))=arrayfun(@(x) transpose(output.signal_gaus_bands(x).hilbert_dec(pre_trial_idx,:)),1:size(output.signal_gaus_bands,2),'uni',false);
         trial.(strcat('signal','_pre_trial','_gaus_band_hilb_dec_zs'))=arrayfun(@(x) transpose(output.signal_gaus_bands(x).hilbert_dec_zs(pre_trial_idx,:)),1:size(output.signal_gaus_bands,2),'uni',false);
         trial.(strcat('signal','_pre_trial','_broadband_hilb_dec'))=cellfun(@(x) x(:,pre_trial_idx),output.signal_broad_bands.hilbert_dec,'uni',false)';

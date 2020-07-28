@@ -129,7 +129,7 @@ param.channels_deselect = []; %no channels deselected yet!
 fprintf('Visually inspect the pre- line noise removal and common source averaging signal \n')
 print_figure = false;
 figure_label = "";
-%plot_signal_over_time(signal,param,session_start,'pre-common source averaging', ops.save_plots,print_figure, ops.plot_save_path, figure_label,ops.op_info.sub_id)
+plot_signal_over_time(signal,param,session_start,'pre-common source averaging', ops.save_plots,print_figure, ops.plot_save_path, figure_label,ops.op_info.sub_id)
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MEASURE LINE-NOISE POWER BEFORE SIGNAL PROCESSING
@@ -354,7 +354,7 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
     colors=[col_vir(1:floor(size(x_norm_cell,1)/2),:);col_inf(1:(floor(size(x_norm_cell,1)/2)+1),:)];
 
     %all_filenames = {};
-    for kk=1:2%kk_total
+    for kk=1:kk_total
         clf;
         set(0,'units','pixels');
         screen = get(0,'ScreenSize');
@@ -405,7 +405,7 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
            % print(gcf,'-painters', '-depsc', strcat(analysis_path,info.subject,'/',info.subject,'_','fig_for_U01','.pdf'));
 
         end      
-        %pause
+        pause
     end
 
     % set(gcf,'PaperPositionMode','auto'); %used to modify how we save the figure
