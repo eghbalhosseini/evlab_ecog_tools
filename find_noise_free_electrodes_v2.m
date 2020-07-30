@@ -129,7 +129,7 @@ param.channels_deselect = []; %no channels deselected yet!
 fprintf('Visually inspect the pre- line noise removal and common source averaging signal \n')
 print_figure = false;
 figure_label = "";
-plot_signal_over_time(signal,param,session_start,'pre-common source averaging', ops.save_plots,print_figure, ops.plot_save_path, figure_label,ops.op_info.sub_id)
+%plot_signal_over_time(signal,param,session_start,'pre-common source averaging', ops.save_plots,print_figure, ops.plot_save_path, figure_label,ops.op_info.sub_id)
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MEASURE LINE-NOISE POWER BEFORE SIGNAL PROCESSING

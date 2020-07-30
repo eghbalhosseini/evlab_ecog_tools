@@ -2,8 +2,8 @@
 clear all;
 close all;
 home;
-experiment_name ='MITNLengthSentences';
-subject_name='AMC083';
+experiment_name ='MITLangloc';
+subject_name='AMC082';
 %%
 on_openmind = 0;
 [ignore,user]=system('whoami');
@@ -117,7 +117,7 @@ d= dir(sub_raw_path)
 d_files=transpose(arrayfun(@(x) {strcat(d(x).folder,filesep,d(x).name)}, 1:length(d)));
 
 if ~exist(expt_sub_op_info_mat_filename)
-    d_ops = create_sub_operation_info_ALBANY('save_path', master_sub_info_path);
+    d_ops = create_sub_operation_info_ALBANY('save_path', master_sub_info_path, 'experiment', experiment_name);
     d_subj_op_info=dir([master_sub_info_path filesep subject_name '_op_info.mat']);
     d_info=arrayfun(@(x) {strcat(d_subj_op_info(x).folder,filesep,d_subj_op_info(x).name)}, 1:length(d_subj_op_info));
     subject_op_info=load(d_info{1},sprintf('%s_op_info',subject_name));
