@@ -372,7 +372,10 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
         if any(ismember(t_window,session_start))
         arrayfun(@(x) plot([t_window(x),t_window(x)],[0,size(x_norm_cell,1)+1],'k-','LineWidth',2),find(ismember(t_window,session_start)))
         session_name=num2str(find(ismember(session_start,t_window)));
-        arrayfun(@(x) text(t_window(x),size(x_norm_cell,1)+1,['sess: ',session_name],'VerticalAlignment','bottom','fontsize',20),find(ismember(t_window,session_start)))
+        for pp=1:length(session_name)
+            session_name_temp = session_name(pp);
+            arrayfun(@(x) text(t_window(x),size(x_norm_cell,1)+1,['sess: ',session_name_temp],'VerticalAlignment','bottom','fontsize',20),find(ismember(t_window,session_start)))
+        end
         end 
         shg;
         title({plot_title,[num2str(kk),' of ', num2str(kk_total)]})

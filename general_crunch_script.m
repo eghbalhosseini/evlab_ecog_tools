@@ -97,8 +97,6 @@ if ~exist(expt_sub_op_info_savepath,'dir')
 end
 
 
-
-
 if 1
     fprintf('adding evlab ecog tools to path \n');
     addpath(code_path);
