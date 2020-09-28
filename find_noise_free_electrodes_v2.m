@@ -33,8 +33,8 @@ sampling_rate=unique(s_rates);
 % compare source channels
 src_ch=cellfun(@(x) x.SourceCh.NumericValue,parameters);
 assert(all(src_ch==src_ch(1)),'error: Data files dont have the same SourceNumber!');
-if ~isempty(ecog_channels)
-    param.channels=ecog_channels;
+if ~isempty(cortical_channels)
+    param.channels=cortical_channels;
 else 
     param.channels=1:unique(src_ch);
 end 
