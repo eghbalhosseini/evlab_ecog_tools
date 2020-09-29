@@ -3,7 +3,7 @@ clear all;
 close all;
 home;
 experiment_name ='MIT_SWJN_audio_visual_task';
-subject_name='AMC085';
+subject_name='AMC082';
 %%
 on_openmind = 0;
 [ignore,user]=system('whoami');
@@ -14,7 +14,7 @@ if contains(user,'eghbalhosseini')
         expt_sub_op_info_savepath='~/MyData/ecog_nlength/sub_operation_info/';
         code_path='~/MyCodes/evlab_ecog_tools/';
         sub_raw_path=[data_path,sprintf('subject_raw/%s/**/ECOG*.dat',subject_name)];
-        
+        plot_save_path = save_path;
         master_sub_info_path = [ecog_path filesep 'subject_op_info_MASTER' filesep];
         sub_info_path=[data_path filesep 'sub_operation_info' filesep];
 

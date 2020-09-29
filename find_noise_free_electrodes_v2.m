@@ -281,7 +281,7 @@ fprintf(1,'] done\n');
 fprintf('Visually inspect the post filtering signal for manual noisy channel removal \n');
 print_figure = true;
 figure_label = "PRE-REMOVAL_";
-plot_signal_over_time(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering',ops.save_plots,print_figure, ops.plot_save_path,figure_label,ops.op_info.sub_id)
+plot_signal_over_time_v2(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering',ops.save_plots,print_figure, ops.plot_save_path,figure_label,ops.op_info.sub_id)
 print_figure = false;
 figure_label = "";
 %% 
@@ -369,6 +369,7 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
         set(ax,'yticklabel','')
         arrayfun(@(x) text(t_window(1),x,num2str(x),'Color',colors(x,:),'HorizontalAlignment','right','VerticalAlignment','middle'),param.channels);
         set(ax,'ylim',[0,size(x_norm_cell,1)+1]);
+        set(ax,'TickDir','in');
         if any(ismember(t_window,session_start))
         arrayfun(@(x) plot([t_window(x),t_window(x)],[0,size(x_norm_cell,1)+1],'k-','LineWidth',2),find(ismember(t_window,session_start)))
         session_name=num2str(find(ismember(session_start,t_window)));
@@ -403,6 +404,7 @@ function []= plot_signal_over_time(signal,param,session_start,plot_title,save_pl
 %             set(gcf,'position',[ pos(1),pos(2),8.5,11])
             set(gcf,'PaperOrientation', 'landscape');
             print(gcf,'-painters','-fillpage', '-dpdf', filename);
+            print(gcf,'-opengl','-fillpage', '-dpdf', filename);
             %export_fig(filename, '-append');
           
            % print(gcf,'-painters', '-depsc', strcat(analysis_path,info.subject,'/',info.subject,'_','fig_for_U01','.pdf'));
