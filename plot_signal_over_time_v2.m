@@ -29,7 +29,6 @@ function []= plot_signal_over_time_v2(signal,param,session_start,plot_title,save
     col_vir=viridis(floor(.8*size(x_norm_cell,1)));
     colors=[col_vir(1:floor(size(x_norm_cell,1)/2),:);col_inf(1:(floor(size(x_norm_cell,1)/2)+1),:)];
 
-    all_filenames = {};
     for kk=1:kk_total
         clf;
         set(0,'units','pixels');
@@ -92,7 +91,7 @@ function []= plot_signal_over_time_v2(signal,param,session_start,plot_title,save
 
         end
         set(ax, 'XLimSpec', 'Tight');
-       filename = strcat(save_path, 'channel_plots', filesep, sub_id, '_', figure_label,'.pdf')
+       filename = strcat(save_path, 'channel_plots', filesep, sub_id, figure_label,'.pdf')
        get(f,'Papersize');
        f.Units='Inches';
        set(f,'Papersize',[15,print_length*kk_total]);
