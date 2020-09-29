@@ -3,7 +3,8 @@ clear all;
 close all;
 home;
 experiment_name ='MIT_SWJN_audio_visual_task';
-subject_name='AMC082';
+
+subject_name='AMC048';
 %%
 on_openmind = 0;
 [ignore,user]=system('whoami');
