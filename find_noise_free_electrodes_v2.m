@@ -280,7 +280,7 @@ fprintf(1,'] done\n');
 %% plot post filtering 
 fprintf('Visually inspect the post filtering signal for manual noisy channel removal \n');
 print_figure = true;
-figure_label = "PRE-REMOVAL_";
+figure_label = "PRE-REMOVAL";
 plot_signal_over_time_v2(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering',ops.save_plots,print_figure, ops.plot_save_path,figure_label,ops.op_info.sub_id)
 print_figure = false;
 figure_label = "";
@@ -289,7 +289,7 @@ x = 1;
 channels_removed_automatically = param.channels_deselect;
 channels_removed_manually = [];
 num_removals = 0;
-while ~isempty(x)
+%while ~isempty(x)
     prompt='Additional channels to remove? Format: [1,2] or [1:10, 20:25, 31] (if you are done removing channels, press Enter)  \n';
     x=input(prompt);
     if ~isempty(x)
@@ -301,12 +301,12 @@ while ~isempty(x)
         param.channels_selected = setdiff(param.channels,param.channels_deselect);
         fprintf('visually inspect signal for manual channel removal \n');
         print_figure = true;
-        figure_label = strcat("POST-REMOVAL", num2str(num_removals), "_");
-        plot_signal_over_time(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering and manual removal of channels',ops.save_plots,print_figure,ops.plot_save_path,figure_label,ops.op_info.sub_id);
+        figure_label = strcat("POST-REMOVAL");
+        plot_signal_over_time_v2(signal,param,session_start,'post 60 Hz noise removal, common source averaging, and notch filtering and manual removal of channels',ops.save_plots,print_figure,ops.plot_save_path,figure_label,ops.op_info.sub_id);
         print_figure = false;
         figure_label = "";
     end
-end
+%end
 
 prompt='enter your full name please :) -- ';
 user_name = input(prompt, 's');

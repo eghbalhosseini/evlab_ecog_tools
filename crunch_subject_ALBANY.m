@@ -1,10 +1,9 @@
-%% extract dat files 
-clear all;
-close all;
-home;
-experiment_name ='MITConstituentBounds';
 
-subject_name='AMC099';
+function []=crunch_subject_ALBANY(subject_name, experiment_name)
+%% extract dat files 
+%experiment_name ='MITConstituentBounds';
+
+%subject_name='AMC083';
 %%
 on_openmind = 0;
 [ignore,user]=system('whoami');
@@ -29,7 +28,7 @@ elseif contains(user,'hsmall')
         ecog_path = '~/Desktop/ECOG';
         data_path = [ecog_path filesep 'DATA' filesep experiment_name];
         master_sub_info_path = [ecog_path filesep 'subject_op_info_MASTER' filesep];
-        sub_raw_path=[data_path filesep subject_name filesep experiment_name filesep 'ECOG001' filesep 'ECOG*.dat'];
+        sub_raw_path=[data_path filesep subject_name filesep experiment_name filesep 'ECOG001' filesep 'ECOG*.dat']
         save_path = [ecog_path filesep 'crunched' filesep experiment_name filesep]; %save it into an experiment specific folder
         plot_save_path = save_path;
         if ~exist(save_path, 'dir')
@@ -115,7 +114,7 @@ expt_sub_op_info_mat_filename = [expt_sub_op_info_savepath subject_name '_' expe
 d= dir(sub_raw_path)
 d_files=transpose(arrayfun(@(x) {strcat(d(x).folder,filesep,d(x).name)}, 1:length(d)));
 if(isempty(d_files))
-    error(strcat('error: experiment folder *', experiment_name, '* not found'));
+    error(strcat('error: experiment folder *', experiment_name, '* or subject folder *',subject_name,'* not found'));
 end
 
 if ~exist(expt_sub_op_info_mat_filename)
@@ -386,4 +385,8 @@ for i=1:length(d_files)
     clearvars -except d_files i subject_name d_info d experiment_name data_path save_path sub_info_path expt_sub_op_info_mat_filename
 
    
+end
+    clear all;
+    close all;
+    home;
 end

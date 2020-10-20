@@ -12,7 +12,7 @@ function []= plot_signal_over_time_v2(signal,param,session_start,plot_title,save
     
     x_mean=cellfun(@nanmean,x_cell);
     x_std=cellfun(@nanstd,x_cell);
-    std_factor=8;
+    std_factor=10;
     outlier=arrayfun(@(x) (((x_cell{x}-x_mean(x))<-std_factor*x_std(x))...
             | ((x_cell{x}-x_mean(x))>std_factor*x_std(x))),1:length(x_mean),'uni',false);
 
@@ -39,7 +39,7 @@ function []= plot_signal_over_time_v2(signal,param,session_start,plot_title,save
         session_end=min([(kk*t_length),size(signal,1)]);
         t_window=((kk-1)*t_length+1):2:(session_end);
         arrayfun(@(x) plot(t_window,x_norm_cell{x}(t_window)+x-1,'color',colors(x,:)),param.channels)
-        arrayfun(@(x) plot(t_window,x_cell_nan{x}(t_window)+x-1,'color','r','linewidth',2),param.channels)
+        arrayfun(@(x) plot(t_window,x_cell_nan{x}(t_window)+x-1,'color','red','linewidth',2),param.channels)
         set(ax,'ytick',[1:size(x_norm_cell,1)]);
         set(ax,'yticklabel','')
         arrayfun(@(x) text(t_window(1),x,[num2str(x),' '],'Color',colors(x,:),'HorizontalAlignment','right','VerticalAlignment','middle'),param.channels);
@@ -55,9 +55,17 @@ function []= plot_signal_over_time_v2(signal,param,session_start,plot_title,save
         end 
         shg;
         title({plot_title,[num2str(kk),' of ', num2str(kk_total)]})  
-        pause
+        pause;
+        value = double(get(gcf,'CurrentCharacter'));
+        if (value==113) %if value is q, get out of plotting
+            close(gcf);
+            break;
+        end
     end
 
+    close all
+    filename = strcat(save_path, 'channel_plots', filesep, sub_id,'_', figure_label,'.pdf');
+    fprintf(strcat('Saving ',filename,' in channel_plots directory \n'));
     
     if(print_figure && save_plots)
     print_length=5;
@@ -67,6 +75,7 @@ function []= plot_signal_over_time_v2(signal,param,session_start,plot_title,save
         set(f,'color',[.7,.7,.7],'position', screen)
         ax=axes('position',[.02,.02,.95,.95]);
         for kk=1:kk_total
+            fprintf('☆')
             hold on
             session_end=min([(kk*t_length),size(signal,1)]);
             t_window=((kk-1)*t_length+1):2:(session_end);
@@ -91,12 +100,17 @@ function []= plot_signal_over_time_v2(signal,param,session_start,plot_title,save
 
         end
         set(ax, 'XLimSpec', 'Tight');
-       filename = strcat(save_path, 'channel_plots', filesep, sub_id, figure_label,'.pdf')
+       
+       if ~exist(strcat(save_path,'channel_plots'))
+           mkdir(strcat(save_path,'channel_plots'))
+       end
+       
        get(f,'Papersize');
        f.Units='Inches';
        set(f,'Papersize',[15,print_length*kk_total]);
        set(f,'PaperOrientation','landscape')
        print(f,'-opengl','-dpdf','-fillpage',filename)
+       fprintf('\n')
     end 
-    %close all;
+    close all;
 end
