@@ -5,8 +5,28 @@ function []=crunch_subject_ALBANY(subject_name, experiment_name)
 
 %subject_name='AMC083';
 %%
-on_openmind = 0;
+on_openmind = 1;
+
 [ignore,user]=system('whoami');
+if(on_openmind == 1)
+    fprintf('adding evlab ecog tools to path (openmind) \n');
+    addpath(genpath('/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_ecog_tools'));
+    addpath(genpath('/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_ecog_tools/ecog-filters'));
+    addpath(genpath('/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_ecog_tools/albany_mex_files'));
+    addpath(genpath('/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_matlab_toolsColormaps'));
+    code_path='/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_ecog_tools';
+    ecog_path = '/mindhive/evlab/u/Shared/ECoG';
+    data_path = [ecog_path filesep 'DATA' filesep experiment_name];
+    master_sub_info_path = [ecog_path filesep 'subject_op_info_MASTER' filesep];
+    sub_raw_path=[data_path filesep subject_name filesep experiment_name filesep 'ECOG001' filesep 'ECOG*.dat']
+    save_path = [ecog_path filesep 'crunched' filesep experiment_name filesep]; %save it into an experiment specific folder
+    plot_save_path = save_path;
+    if ~exist(save_path, 'dir')
+        mkdir(save_path);
+    end
+else
+
+
 if contains(user,'eghbalhosseini')
         data_path='~/MyData/ecog_nlength/';
         save_path='~/MyData/ecog_nlength/crunched/';
@@ -71,22 +91,6 @@ elseif contains(user,'gretatuckute')
             mkdir(expt_sub_op_info_savepath)
         end        
 end
-if(on_openmind == 1)
-    fprintf('adding evlab ecog tools to path (openmind) \n');
-    addpath(genpath('/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_ecog_tools'));
-    addpath(genpath('/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_ecog_tools/ecog-filters'));
-    addpath(genpath('/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_ecog_tools/albany_mex_files'));
-    addpath(genpath('/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_matlab_toolsColormaps'));
-    code_path='/mindhive/evlab/u/Shared/ECoG/ecog_pipeline/evlab_ecog_tools';
-    ecog_path = '/mindhive/evlab/u/Shared/ECoG/DATA';
-    data_path = [ecog_path filesep 'DATA' filesep experiment_name];
-    master_sub_info_path = [ecog_path filesep 'subject_op_info_MASTER' filesep];
-    sub_raw_path=[data_path filesep subject_name filesep experiment_name filesep 'ECOG001' filesep 'ECOG*.dat'];
-    save_path = [ecog_path filesep 'crunched' filesep experiment_name filesep]; %save it into an experiment specific folder
-    plot_save_path = save_path;
-    if ~exist(save_path, 'dir')
-        mkdir(save_path);
-    end
 end
 
 %save path specifically for expt sub_op_info
@@ -110,7 +114,8 @@ if ~exist(expt_sub_op_info_savepath,'dir'),mkdir(expt_sub_op_info_savepath);end
 %if it has already been visually inspected just use that one
 %if not, use the master subject_op_info and run find_noise_free_electrodes
 %and save info to experiment folder
-expt_sub_op_info_mat_filename = [expt_sub_op_info_savepath subject_name '_' experiment_name '_operation_info.mat'];
+expt_sub_op_info_mat_filename = [expt_sub_op_info_savepath subject_name '_' experiment_name '_operation_info.mat']
+
 d= dir(sub_raw_path)
 d_files=transpose(arrayfun(@(x) {strcat(d(x).folder,filesep,d(x).name)}, 1:length(d)));
 if(isempty(d_files))
@@ -118,6 +123,10 @@ if(isempty(d_files))
 end
 
 if ~exist(expt_sub_op_info_mat_filename)
+    fprintf('data not visually inspected yet \n');
+    if(on_openmind)
+        error('Visual inspection of channels is not supported on openmind. Please complete visual inspection on local computer.');
+    end
     d_ops = create_sub_operation_info_ALBANY('save_path', master_sub_info_path, 'experiment', experiment_name);
     d_subj_op_info=dir([master_sub_info_path filesep subject_name '_op_info.mat']);
     d_info=arrayfun(@(x) {strcat(d_subj_op_info(x).folder,filesep,d_subj_op_info(x).name)}, 1:length(d_subj_op_info));
@@ -244,6 +253,8 @@ for i=1:length(d_files)
             stimulus_index=find(output.states.StimulusCode==trial_indx(kk));
             stimuli_downsample_index=find(output.states.StimulusCodeDownsample==trial_indx(kk));
             stimuli_type{kk,1}=stimuli_value{StimType_indx,trial_indx(kk)};
+            stimuli_value
+            isRight_indx
             if ~isempty(stimuli_value{IsRight_indx,trial_indx(kk)})
                 probe_result=[probe_result,stimuli_value{IsRight_indx,trial_indx(kk)}];
             end 

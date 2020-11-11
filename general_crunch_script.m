@@ -2,9 +2,9 @@
 clear all;
 close all;
 home;
-experiment_name ='MITConstituentBounds';
+experiment_name ='MITLangloc';
 
-subject_name='AMC099';
+subject_name='AMC096';
 %%
 on_openmind = 0;
 [ignore,user]=system('whoami');
