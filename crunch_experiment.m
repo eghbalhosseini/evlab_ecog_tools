@@ -1,6 +1,6 @@
 
-experiment_name = 'MITLangloc';
-subjects = {'AMC096'};
+experiment_name = 'MITConstituentBounds';
+subjects = {'AMC085'};
 
 for i=1:length(subjects)
     crunch_subject_ALBANY(subjects{i},experiment_name)
