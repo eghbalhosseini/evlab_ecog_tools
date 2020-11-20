@@ -22,18 +22,21 @@ close all
 
 %% specify parameters
 subject_id = 'AMC096'; %must be string
-experiment_name = 'MITNLengthSentences'; %must be string
-%condition1 = [{{'3sents_8words_intact'},{'6sents_4words_intact'}, {'1sent_24words_intact'}}]; %must be a list
-%condition2 = [{{'3sents_8words_intact'},{'6sents_4words_intact'}, {'1sent_24words_intact'}}]; %must be a list
-conditions = {[{'3sents_8words_intact'},{'6sents_4words_intact'},{'1sent_24words_intact'}],[{'3sents_8words_intact'},{'6sents_4words_intact'}, {'1sent_24words_intact'}]};
-use_pretrials = [{true},{false}];
-target_word_idxs = [{4},{4}];
-%cond1_use_pretrial = false; %must be boolean
-%cond2_use_pretrial = false; %must be boolean
-%cond1_target_word_idx = [1:12]; %word(s) to get the average response amplitude to, must be a list
-%cond2_target_word_idx = [1:12]; %word(s) to get the average response amplitude to, must be a list
+experiment_name = 'MITLangloc'; %must be string
+condition1 = [{'Sentences'}]; %must be a list
+condition2 = [{'Jabberwocky'}]; %must be a list
+conditions = {condition1,condition2};
+use_pretrials = [{false},{false}]; %use same indices as conditions, must be logicals
+target_word_idxs = [{1:12},{1:12}]; %use same indices as conditions, word(s) to get the average response amplitude to, must be a list
+
 data_to_use = "hilbert_zs"; %must be string
 verbose = true;
+
+num_permutations = 1000;
+p_threshold = 0.01;
+
+global testing;
+testing = false;
 
 % subject_id = 'AMC096';
 % experiment_name = 'MITNLengthSentences';
@@ -48,10 +51,6 @@ verbose = true;
 % data_to_use = "hilbert_zs"; %options: hilbert_zs;
 % verbose = true;
 
-num_permutations = 1000;
-p_threshold = 0.01;
-%TODO- convert parameters to a struct? pass the struct through
-%would get rid of global verbose variable
 
 
 %% specify where the data is
@@ -72,6 +71,8 @@ d_data= dir(strcat(crunched_data_path,filesep,subject_id,'*_crunched.mat'));
 fprintf(' %d .mat files were found \n', length(d_data));
 d_data=arrayfun(@(x) strcat(d_data(x).folder,filesep,d_data(x).name),[1:length(d_data)]','uni',false);
 
+check_parameters(conditions, use_pretrials, target_word_idxs, verbose);
+if(verbose)fprintf("Parameters checked. \n");end;
 if(verbose)fprintf("Using subject %s's %s data from %s for language electrode selection \n", subject_id,data_to_use, experiment_name);end
 
 
@@ -82,10 +83,37 @@ if(verbose)fprintf("Using subject %s's %s data from %s for language electrode se
 
 %% get language electrodes
 
-[lang_electrodes_list, lang_electrodes_list_t_test, electrodes] = determine_lang_electrodes(mean_amplitudes{1,2},mean_amplitudes{2,2},p_threshold, num_permutations, verbose);
+[lang_electrodes_list_permutations, lang_electrodes_list_t_test, electrodes] = determine_lang_electrodes(mean_amplitudes{1,4},mean_amplitudes{2,4},p_threshold, num_permutations, verbose);
 
 
 %%
+function [] = check_parameters(conditions,use_pretrials, target_word_idxs,verbose)
+if ~(iscell(conditions))
+    error('conditions must be a cell array of lists of strings, with each entry contains a list with the conditions to include for each condition (can be just one condition)');
+end
+
+if ~iscell(use_pretrials)
+    error('use_pretrials must be a logical cell array, specifying whether to use the pretrial for the corresponding condition in conditions');
+end
+
+if ~iscell(target_word_idxs)
+    error('target_word_idxs must be a cell array, with each entry containing a list of word indices to extract average responses to for the corresponding condition in conditions');
+end
+
+if ~islogical(verbose)
+    error('verbose must be a logical. true to print out updates, false to suppress outputs.');
+end
+
+%check pretrial
+for i=1:length(use_pretrials)
+    if(use_pretrials{i})
+        if(length(target_word_idxs{i})>1)
+            error('if you are using the pretrials of a condition, you may only specify one word index (does not matter which one, it will not be used, only the pretrial period before the entire trial will be used). if you specify more than one word index, it will average the pretrials across the trials and cause duplicate values')
+        end
+    end
+end
+
+end
 function [list, list_t_test,lang_electrodes] = determine_lang_electrodes(cond1,cond2, p_threshold, num_permutations, verbose)
 %each row of cond1 and cond2 contain one electrode's avg response
 %amplitudes over all the relevant trials
@@ -98,7 +126,7 @@ if(verbose)fprintf("Conducting t-tests comparing cond1 and cond2 responses for %
 for i=1:num_electrodes
     cond1_vector = cond1(i,:);
     cond2_vector = cond2(i,:);
-    result = ttest2(cond1_vector,cond2_vector);
+    result = ttest2(cond1_vector,cond2_vector, 'Alpha', p_threshold);
     t_test_results(i) = result;
     if (result==1)
         list_t_test = [list_t_test i]; %save the electrode number in the list
@@ -146,14 +174,19 @@ list = 1:length(lang_electrodes);
 list = list(lang_electrodes);
 
 end
-
 function [cond_mean_trial_amplitudes] = extract_subj_data(d_data,data_to_use, conditions, use_pretrials, target_word_idxs,verbose)
+global testing;
 num_cond = length(conditions);
 cond_amplitudes = cell(num_cond,1);
 cond_mean_trial_amplitudes = cell(num_cond);
 
+num_sessions = length(d_data);
+if(testing)
+    fprintf("WARNING: IN TESTING MODE, ONLY USING SESSION 1 DATA\n")
+    num_sessions = 1;
+end
 %compile condition trial data over all of the sessions
-for k=1:length(d_data)
+for k=1:num_sessions
     if(verbose)fprintf('Session %d \n', k);end
     subj=load(d_data{k});
     for i=1:num_cond
@@ -173,6 +206,7 @@ for i=1:num_cond
     num_trials = size(cond_word_amplitudes,2)/num_words;
 
     %compute the mean across the word positions in each trial for each electrode. 
+    if(verbose)fprintf('Computing average across the word positions for each trial in each electrode in condition %d...\n',i);end;
     num_electrodes = size(cond_word_amplitudes,1);
     cond_trial_amplitudes = zeros(num_electrodes,num_trials);
     for k=1:num_electrodes
@@ -186,8 +220,15 @@ for i=1:num_cond
         end
     end
     
+    pretrial_message = "not_pretrial";
+    if(use_pretrials{i})
+        pretrial_message = "pretrial";
+    end
+    
     cond_mean_trial_amplitudes{i,1} = conditions{i};
-    cond_mean_trial_amplitudes{i,2} = cond_trial_amplitudes;
+    cond_mean_trial_amplitudes{i,2} = pretrial_message;
+    cond_mean_trial_amplitudes{i,3} = target_word_idxs{i};
+    cond_mean_trial_amplitudes{i,4} = cond_trial_amplitudes;
 end
 
 end
