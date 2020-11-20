@@ -138,7 +138,9 @@ for i=1:length(d_files)
     StimType_indx=cell2mat(cellfun(@(x) strcmp(x,'StimType'),output.parameters.Stimuli.RowLabels,'UniformOutput',false));
     ConditionName_indx=cell2mat(cellfun(@(x) strcmp(x,'ConditionName'),output.parameters.Stimuli.RowLabels,'UniformOutput',false));  
     IsRight_indx=cell2mat(cellfun(@(x) strcmp(x,'IsRight'),output.parameters.Stimuli.RowLabels,'UniformOutput',false)) | ...
-        cell2mat(cellfun(@(x) strcmp(x,'IsProbeCorrect'),output.parameters.Stimuli.RowLabels,'UniformOutput',false));
+        cell2mat(cellfun(@(x) strcmp(x,'IsProbeCorrect'),output.parameters.Stimuli.RowLabels,'UniformOutput',false)) | ...
+        cell2mat(cellfun(@(x) strcmp(x,'ComprehensionAnswer'),output.parameters.Stimuli.RowLabels,'UniformOutput',false));
+    sentenceID_indx = cell2mat(cellfun(@(x) strcmp(x,'ComprehensionAnswer'),output.parameters.Stimuli.RowLabels,'UniformOutput',false));
     %
     trial_for_stimuli_seq=trials_value(trials_indx,:);
     trials=unique(trial_for_stimuli_seq);
@@ -208,13 +210,31 @@ for i=1:length(d_files)
         for kk=1:length(trial_indx)
             stimulus_index=find(output.states.StimulusCode==trial_indx(kk));
             stimuli_downsample_index=find(output.states.StimulusCodeDownsample==trial_indx(kk));
-            stimuli_type{kk,1}=stimuli_value{StimType_indx,trial_indx(kk)};
-            stimuli_value
-            isRight_indx
-            if ~isempty(stimuli_value{IsRight_indx,trial_indx(kk)})
+            
+            if ~isempty(StimType_indx)
+                stimuli_type{kk,1}=stimuli_value{StimType_indx,trial_indx(kk)};
+            else
+                fprintf('warning: no info for StimType'\n);
+            end
+            
+            if ~isempty(sentenceID_indx)
+                sentenceID{kk,1} = stimuli_value{sentenceID_indx,trial_indx(kk)};
+            else
+                fprintf('warning: no info for sentenceID'\n);
+            end
+            
+            if ~isempty(IsRight_indx)
                 probe_result=[probe_result,stimuli_value{IsRight_indx,trial_indx(kk)}];
+            else
+                fprintf('warning: no info for isRight\n');
             end 
-            stimuli_string{kk,1}=stimuli_value{caption_indx,trial_indx(kk)};
+            
+            if ~isempty(caption_indx)
+                stimuli_string{kk,1}=stimuli_value{caption_indx,trial_indx(kk)};
+            else
+                fprintf('warning: no info for caption/stimuli string)\n');
+            end
+            
             trial_index=[trial_index;stimulus_index];
             trial_downsample_index=[trial_downsample_index;stimuli_downsample_index];
             % 
@@ -259,6 +279,7 @@ for i=1:length(d_files)
         trial.(strcat('signal_ave','_hilbert_downsample_parsed'))=cellfun(@(x) nanmean(x,2),signal_hilbert_downsample_parsed,'UniformOutput',false);
         trial.(strcat('signal_ave','_hilbert_zs_downsample_parsed'))=cellfun(@(x) nanmean(x,2),signal_hilbert_zs_downsample_parsed,'UniformOutput',false);
         trial.(strcat('trial','_string'))=trial_string;
+        trial.(strcat('trial','_sentenceID'))=sentenceID;
         trial.(strcat('trial','_probe_question'))=trial_probe;
         trial.(strcat('trial','_probe_answer'))=probe_result;
         trial.trial_onset_sample=stimuli_range(1);
