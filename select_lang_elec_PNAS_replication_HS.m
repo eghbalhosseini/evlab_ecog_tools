@@ -27,13 +27,13 @@ condition1 = [{'Sentences'}]; %must be a list
 condition2 = [{'Jabberwocky'}]; %must be a list
 conditions = {condition1,condition2};
 use_pretrials = [{false},{false}]; %use same indices as conditions, must be logicals
-target_word_idxs = [{1:12},{1:12}]; %use same indices as conditions, word(s) to get the average response amplitude to, must be a list
+target_word_idxs = [{1:2},{1:2}]; %use same indices as conditions, word(s) to get the average response amplitude to, must be a list
 
-data_to_use = "hilbert_zs"; %must be string
+data_to_use = "hilbert_zs"; %must be string options: hilbert_zs, hilbert
 verbose = true;
 
 num_permutations = 1000;
-p_threshold = 0.01;
+p_threshold = 0.05;
 
 global testing;
 testing = false;
@@ -174,11 +174,11 @@ list = 1:length(lang_electrodes);
 list = list(lang_electrodes);
 
 end
-function [cond_mean_trial_amplitudes] = extract_subj_data(d_data,data_to_use, conditions, use_pretrials, target_word_idxs,verbose)
+function [mean_trial_amplitudes] = extract_subj_data(d_data,data_to_use, conditions, use_pretrials, target_word_idxs,verbose)
 global testing;
 num_cond = length(conditions);
 cond_amplitudes = cell(num_cond,1);
-cond_mean_trial_amplitudes = cell(num_cond);
+mean_trial_amplitudes = cell(num_cond);
 
 num_sessions = length(d_data);
 if(testing)
@@ -190,59 +190,38 @@ for k=1:num_sessions
     if(verbose)fprintf('Session %d \n', k);end
     subj=load(d_data{k});
     for i=1:num_cond
-        amplitudes = extract_condition_amplitudes(subj,data_to_use, conditions{i}, use_pretrials{i},target_word_idxs{i}, verbose);
+        amplitudes = extract_avg_amplitudes(subj,data_to_use, conditions{i}, use_pretrials{i},target_word_idxs{i}, verbose);
         cond_amplitudes{i} = cat(1,cond_amplitudes{i},amplitudes);
     end
     
 end
 
 for i=1:num_cond
-    current_cond_amplitudes = cond_amplitudes{i};
-
-    %put data into easy to use format
-    cond_word_amplitudes = cell2mat(reshape(current_cond_amplitudes,1,[]));
-
-    num_words = length(target_word_idxs{i});
-    num_trials = size(cond_word_amplitudes,2)/num_words;
-
-    %compute the mean across the word positions in each trial for each electrode. 
-    if(verbose)fprintf('Computing average across the word positions for each trial in each electrode in condition %d...\n',i);end;
-    num_electrodes = size(cond_word_amplitudes,1);
-    cond_trial_amplitudes = zeros(num_electrodes,num_trials);
-    for k=1:num_electrodes
-        for j=1:num_trials
-            start_idx=1;
-            if(j>1)
-                start_idx = start_idx + (j-1)*num_words;
-            end
-            end_idx = start_idx+num_words-1;
-            cond_trial_amplitudes(k,j) = mean(cond_word_amplitudes(k, start_idx:end_idx));
-        end
-    end
-    
     pretrial_message = "not_pretrial";
     if(use_pretrials{i})
         pretrial_message = "pretrial";
     end
     
-    cond_mean_trial_amplitudes{i,1} = conditions{i};
-    cond_mean_trial_amplitudes{i,2} = pretrial_message;
-    cond_mean_trial_amplitudes{i,3} = target_word_idxs{i};
-    cond_mean_trial_amplitudes{i,4} = cond_trial_amplitudes;
+    mean_trial_amplitudes{i,1} = conditions{i};
+    mean_trial_amplitudes{i,2} = pretrial_message;
+    mean_trial_amplitudes{i,3} = target_word_idxs{i};
+    mean_trial_amplitudes{i,4} = cond_amplitudes{i};
+    %cond_mean_trial_amplitudes{i,4} = cond_trial_amplitudes;
 end
 
 end
-function [avg_amplitudes] = extract_condition_amplitudes(subj,data_to_use, conditions,use_pretrial, target_word_idx,verbose)
+function [avg_amplitudes] = extract_avg_amplitudes(subj,data_to_use, conditions,use_pretrial, target_word_idx,verbose)
 avg_amplitudes = [];
 avg_word_amplitudes = [];
 if(verbose)fprintf('extracting average response amplitudes to... \n');end
 for i=1:length(conditions)
     current_condition = string(conditions(i));
-    for j=1:length(target_word_idx)
-        extracted_amplitudes = get_avg_amplitudes(subj,data_to_use, current_condition, use_pretrial, target_word_idx(j), verbose);
-        avg_word_amplitudes = cat(1,avg_word_amplitudes, extracted_amplitudes);
-    end
-    avg_amplitudes = cat(1,avg_amplitudes, avg_word_amplitudes);
+    extracted_amplitudes = get_word_amplitudes(subj,data_to_use, current_condition, use_pretrial, target_word_idx, verbose);
+    avg_word_amplitudes = cat(1,avg_word_amplitudes, extracted_amplitudes);
+    
+    avg_word_amplitudes_tensor = cell2mat(permute(avg_word_amplitudes,[3,2,1])); %dimensions are now electrodes by trials by words (avg response to)
+    
+    avg_amplitudes = mean(avg_word_amplitudes_tensor,3,'omitnan'); %average over the words (avg response to)
 end
 end
 % subj: struct, a subj's crunched materials, containing info and data structs
@@ -250,7 +229,7 @@ end
 % cond: string, the condition to extract avg amplitudes from
 % use_pretrial: boolean, specifies whether you should extract the amplitude from the pretrials in the relevant trials
 % target_word_idx: int, only used if use_pretrial is false, specifies the word to collect avg amplitude from
-function [avg_amplitudes] = get_avg_amplitudes(subj, data_to_use, cond, use_pretrial,target_word_idx, verbose)
+function [avg_amplitudes] = get_word_amplitudes(subj, data_to_use, cond, use_pretrial,target_word_idx, verbose)
 clear info;
 clear data;
 subj_sess_id=fieldnames(subj);
@@ -265,18 +244,20 @@ trial_type_unique = cellfun(@unique,trial_type_str,'UniformOutput',false);
 %get the indices of the relevant trials
 relevant_trials = cellfun(@(x) x==cond, trial_type_unique);
 
-relevant_trial_data=data(relevant_trials);
+relevant_trial_data=[data{relevant_trials}];
 if(use_pretrial)
     %get the average pretrial response amplitude for all relevant trials
     data_name = strcat("signal_ave_pre_trial_",data_to_use, "_downsample");
     if(verbose)fprintf('pretrial before %s\n',cond);end
-    ave_electrodes=cellfun(@(x) x.signal_ave_pre_trial_hilbert_zs_downsample, relevant_trial_data,'UniformOutput',false);
+    ave_electrodes=cellfun(@(x) x, relevant_trial_data.(data_name),'UniformOutput',false);
 else
     %get the average response amplitude to the target word for all relevant
     %trials
     data_name = strcat("signal_ave_", data_to_use, "_downsample_parsed");
-    if(verbose)fprintf('word %d in %s\n', target_word_idx, cond);end
-    ave_electrodes=cellfun(@(x) x.signal_ave_hilbert_zs_downsample_parsed{target_word_idx,1}, relevant_trial_data,'UniformOutput',false);
+    if(verbose)fprintf('word(s) %d-%d in %s\n', min(target_word_idx), max(target_word_idx), cond);end
+    %ave_electrodes=cellfun(@(x) x.(data_name){target_word_idx,1}, relevant_trial_data,'UniformOutput',false);
+    ave_electrode_data=cellfun(@(x) x(target_word_idx), {relevant_trial_data.(data_name)},'UniformOutput',false);
+    ave_electrodes = [ave_electrode_data{:,:}];
 end
 
 avg_amplitudes = ave_electrodes;
