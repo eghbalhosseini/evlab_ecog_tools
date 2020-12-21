@@ -5,7 +5,7 @@ function []=crunch_subject_ALBANY(subject_name, experiment_name)
 
 %subject_name='AMC083';
 %%
-on_openmind = 0;
+on_openmind = 1;
 
 [ignore,user]=system('whoami');
 if(on_openmind == 1)
@@ -124,7 +124,7 @@ for i=1:length(d_files)
     info.sample_rate=output.parameters.SamplingRate.NumericValue;
     info.downsample_sampling_rate=output.downsamplingrate;
     % 
-    info.pre_trial_samples=info.sample_rate*pre_trial_time;
+    info.pre_trial_samples=info.sample_rate*pre_trial_time; 
     info.pre_trial_samples_downsample=info.downsample_sampling_rate*pre_trial_time;
     % 
     stimuli_squence=output.parameters.Sequence.NumericValue;
@@ -189,6 +189,7 @@ for i=1:length(d_files)
         stimuli_range=[];
         stimuli_downsample_range=[];
         stimuli_type={};
+        sentenceID={};
         probe_result=[];
         stimuli_string={};
         signal_hilbert_downsample_parsed={};
@@ -211,25 +212,25 @@ for i=1:length(d_files)
             stimulus_index=find(output.states.StimulusCode==trial_indx(kk));
             stimuli_downsample_index=find(output.states.StimulusCodeDownsample==trial_indx(kk));
             
-            if ~isempty(StimType_indx)
+            if any(StimType_indx)
                 stimuli_type{kk,1}=stimuli_value{StimType_indx,trial_indx(kk)};
             else
-                fprintf('warning: no info for StimType'\n);
+                fprintf('warning: no info for StimType\n');
             end
             
-            if ~isempty(sentenceID_indx)
+            if any(sentenceID_indx)
                 sentenceID{kk,1} = stimuli_value{sentenceID_indx,trial_indx(kk)};
             else
-                fprintf('warning: no info for sentenceID'\n);
+                fprintf('warning: no info for sentenceID\n');
             end
             
-            if ~isempty(IsRight_indx)
+            if any(IsRight_indx)
                 probe_result=[probe_result,stimuli_value{IsRight_indx,trial_indx(kk)}];
             else
                 fprintf('warning: no info for isRight\n');
             end 
             
-            if ~isempty(caption_indx)
+            if any(caption_indx)
                 stimuli_string{kk,1}=stimuli_value{caption_indx,trial_indx(kk)};
             else
                 fprintf('warning: no info for caption/stimuli string)\n');
