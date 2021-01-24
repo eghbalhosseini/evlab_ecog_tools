@@ -263,7 +263,7 @@ ops.gaus_filt_defs=gaus_filt_defs;
 %% compute bandpass signal in different bands based on chang-lab method, see :
 % Dichter, Benjamin K., Jonathan D. Breshears, Matthew K. Leonard, and Edward F. Chang. 2018.
 % ?The Control of Vocal Pitch in Human Laryngeal Motor Cortex.? Cell 174 (1): 21?31.e9.
-fprintf(1, '>> Extracting and decimationg envelopes based on chang-lab method  \n');
+fprintf(1, '>> Extracting and decimating envelopes based on chang-lab method  \n');
 band_idx=find(~strcmp(bands,'broad_band'));
 decimation_factor = parameters.SamplingRate.NumericValue / ops.downsamplingrate;
 ops.decimation_factor=decimation_factor;
