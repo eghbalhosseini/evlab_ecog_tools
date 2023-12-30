@@ -60,6 +60,11 @@ ecog_loc_for_tag=cellfun(@(x) find(...
 param.ecog_channels=cell2mat(ecog_loc_for_tag);
 param.ecog_channels_labels=ch_names(param.ecog_channels)';
 
+if isempty(param.ecog_channels)
+    disp('no viable electrode in the dataset, aborting')
+    dataout=[]
+else 
+
 
 %% 
 parameters.SamplingRate=datafile.MetaTags.SamplingFreq;
@@ -466,6 +471,7 @@ for idx_channel=1:size(signal_hilbert_zs_loop,2),
     fprintf(1,'.');
 end
 fprintf(1,'] done\n');
+ 
 %% save data out 
 dataout=datafile;
 dataout.signal_hilbert_zs_decimated=signal_hilbert_zs_decimated_loop';
@@ -480,5 +486,7 @@ subj_file_name=strcat(dataout.MetaTags.FilePath,'_',...
     dataout.MetaTags.Filename,'_',...
     dataout.MetaTags.FileExt(2:end),'_filtered');
 save(subj_file_name,'dataout','-v7.3');
+end 
+
 %% 
 end 
