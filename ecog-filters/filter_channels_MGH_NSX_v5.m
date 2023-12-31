@@ -156,8 +156,7 @@ for s_id=1:numel(ops.steps)
             ops.perfromed_steps=[ops.perfromed_steps;'global_car'];
         case 'shank_car' % this one needs additional workd 
             fprintf('\n common source averaging based on good electrodes in each shank...\n');
-            [signal,ops]=comm_src_ave(signal,ops);
-            ops.perfromed_steps=[ops.perfromed_steps;'shank_common_source_removal'];
+            comm_src_ave(signal,ops)
         case 'notch'
             fprintf('\n Notch filtering line noise...\n');
             [signal,notch_ops] = notch_filt(signal, sr);
@@ -342,6 +341,6 @@ if ~isempty(ops.aux_data)
 end 
 dataout.ops= ops;
 fprintf('\n saving results ...\n');
-save(dataout.MetaTags.fullPath,'dataout','-v7.3');
+%save(dataout.MetaTags.fullPath,'dataout','-v7.3');
 fprintf('\n done! file is saved at %s \n',dataout.MetaTags.fullPath);
 end
