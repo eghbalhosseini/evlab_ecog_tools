@@ -58,18 +58,31 @@ for q=1:n_channels
     envl_rejct=envl;
     rise=find(diff(outlie)==1).';
     fall=find(diff(outlie)==-1).';
+    % drop events in the first 50 and last 50 samples 
+    len_x = length(outlie);
+    keep_idx = (rise > 50) & (rise < (len_x - 50));
+    rise= rise(keep_idx);
+
+    keep_idx = (fall > 50) & (fall < (len_x - 50));
+    fall= fall(keep_idx);
+
     try 
         assert(numel(rise)==numel(fall));
         process=true;
     catch err 
         pbar.printMessage(sprintf('unequal rise and fall of outliers, ignoring channel %d \n',q));
         process=false;
-        
     end 
+
+
     outlie_idx={};
     if numel(rise)>0 & process
     for r=rise
         f=fall(find(fall>r,1,'first'));
+        if f-r>10
+           pbar.printMessage(sprintf('rise and fall are too far %d, ignoring event in channel %d \n',f-r,q)); 
+           continue
+        end 
         interp_win=r:f;
         interp_val=envl(interp_win).';
         lookup_window=max([r-ops.buffer,1]):min([(f+ops.buffer),numel(outlie)]);
