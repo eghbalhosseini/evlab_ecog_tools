@@ -382,21 +382,27 @@ end
             cond_key='word_';
             trial_strings=cellfun(@(x) strjoin({x.string{contains(x.key,cond_key)}}),cond_resp,'uni',false);
             [D,P,X] = unique(trial_strings,'stable');
+            assert(length(D)==60);
             % create average responses
             % get only one of the repeats 
             uniq_cond_resp=cond_resp(P);
             uniq_str=cellfun(@(x) strjoin({x.string{contains(x.key,cond_key)}}),uniq_cond_resp,'uni',false);
             cellfun(@(x,y) assert(strcmp(x,y)),unique(uniq_str,'stable'),uniq_str);
+         
              % add sentence name to table 
             uniq_sent_aud_name=sent_aud_name(P);
             if obj.modality=='auditory'
                 uniq_sent_aud_name=erase(uniq_sent_aud_name,'_48000')
             end 
-            uniq_cond_resp_mod=arrayfun(@(x) [cell2table(repmat(uniq_sent_aud_name(x),size(uniq_cond_resp{x},1),1),"VariableNames",{'sentence_id'}),uniq_cond_resp{x}], 1:length(uniq_cond_resp),'uni',false)';
+            assert(sum(cellfun(@(x,y) contains(x,y),erase(sent_aud_transc(P),','),uniq_str))>=58);
+            %A=[erase(sent_aud_transc(P),','),uniq_str,cellfun(@(x,y) {contains(x,y)},erase(sent_aud_transc(P),','),uniq_str)]
+            % use unique str 
+            uniq_cond_resp_mod=arrayfun(@(x) [cell2table(repmat(uniq_sent_aud_name(x),size(uniq_cond_resp{x},1),1),"VariableNames",{'sentence_name'}),uniq_cond_resp{x}], 1:length(uniq_cond_resp),'uni',false)';
             
              % create average responses
             B=uniq_cond_resp;
             B=obj.get_average(B);
+            B=arrayfun(@(x) [cell2table(repmat(uniq_sent_aud_name(x),size(B{x},1),1),"VariableNames",{'sentence_file'}),B{x}], 1:length(B),'uni',false)';
             word_data=obj.get_value(B,'key','word','type','contain');
             word_dat_mod=arrayfun(@(x) [cell2table(repmat(uniq_sent_aud_name(x),size(word_data{x},1),1),"VariableNames",{'sentence_name'}),word_data{x}], 1:length(word_data),'uni',false)';
             sent_dat=vertcat(word_dat_mod{:});
@@ -405,6 +411,14 @@ end
             word_id=extract(sent_dat.key,digitsPattern);
             word_id=num2cell(cellfun(@(x) str2num(x),word_id));
             stim_resp_table=[cell2table([sent_id,word_id],"VariableNames",{'sentence_id','word_id'}),sent_dat];
+            % make some assertion 
+            aa=stim_resp_table(stim_resp_table.sentence_id==13,'string');
+            assert(strcmp(aa.string{10},'would'));
+            
+            aa=stim_resp_table(stim_resp_table.sentence_id==31,'string');
+            assert(strcmp(aa.string{9},'driver'));
+            
+            
             if not(isprop(obj,'stim_resp_table'))
                 P = addprop(obj,'stim_resp_table');
             end 
@@ -492,6 +506,552 @@ end
 %             end
             
     end
+    
+    
+    function obj=make_extended_stim_resp_mat(obj,varargin)
+        p=inputParser();
+            addParameter(p, 'words', 'all');
+            parse(p, varargin{:});
+            ops = p.Results;
+            aud_name=obj.events_table.final_audio_filename;
+            aud_name=erase(aud_name,'.wav');
+            aud_name=erase(aud_name,'_48000');
+            aud_transcript=obj.events_table.final_audio_transcript;
+            % replace 2 buggs sentences
+            cond_key='word_';
+            stim_strings=cellfun(@(x) strjoin({x.string{contains(x.key,cond_key)}}),obj.trial_data,'uni',false);
+            sent_13=find(contains(aud_name,'013_Eng'));
+            aud_transcript{sent_13};
+            assert(sum(contains(strsplit(aud_transcript{sent_13}),strsplit(stim_strings{sent_13})))==11);
+            aud_transcript{sent_13}=stim_strings{sent_13};
+            
+            sent_31=find(contains(aud_name,'031_Eng'));
+            aud_transcript{sent_31};
+            assert(sum(contains(strsplit(aud_transcript{sent_31}),strsplit(stim_strings{sent_31})))==11);
+            aud_transcript{sent_31}=stim_strings{sent_31};
+            P=1:length(aud_transcript);
+            A=[erase(aud_transcript(P),','),stim_strings,cellfun(@(x,y) {contains(x,y)},erase(aud_transcript(P),','),stim_strings)];
+            assert(all([A{:,3}]))
+            
+            
+            list_id=obj.events_table.final_list;
+            trial_id=obj.events_table.trial;
+            B=obj.get_average(obj.trial_data);
+            word_data=obj.get_value(B,'key','word','type','contain');
+            word_dat_mod=arrayfun(@(x) [cell2table(repmat(aud_name(x),size(word_data{x},1),1),"VariableNames",{'stim_name'}),word_data{x}], 1:length(word_data),'uni',false)';
+            word_dat_mod=arrayfun(@(x) [cell2table(repmat({trial_id(x)},size(word_dat_mod{x},1),1),"VariableNames",{'Trial_id'}),word_dat_mod{x}], 1:length(word_dat_mod),'uni',false)';
+            word_dat_mod=arrayfun(@(x) [cell2table(repmat({list_id(x)},size(word_dat_mod{x},1),1),"VariableNames",{'list_id'}),word_dat_mod{x}], 1:length(word_dat_mod),'uni',false)';
+            
+            all_dat=vertcat(word_dat_mod{:});
+            stim_id=extract(all_dat.stim_name,digitsPattern);
+            stim_id=num2cell(cellfun(@(x) str2num(x),stim_id));
+            word_id=extract(all_dat.key,digitsPattern);
+            word_id=num2cell(cellfun(@(x) str2num(x),word_id));
+            stim_types={'S','N'};
+            stim_type=cellfun(@(x) stim_types{isempty(regexp(x,'English'))+1},all_dat.stim_name,'uni',false);
+            stim_value=cellfun(@(x) aud_transcript{find(ismember(aud_name,x),1,'first')},all_dat.stim_name,'uni',false);
+            stim_resp_table=[cell2table([stim_id,word_id,stim_type,stim_value],"VariableNames",{'stim_id','word_id','stim_type','stim_value'}),all_dat];
+            
+            if not(isprop(obj,'extended_stim_resp_table'))
+                P = addprop(obj,'extended_stim_resp_table');
+            end 
+            obj.extended_stim_resp_table=stim_resp_table;
+            save_struct=struct;
+            save_struct.s_vs_n_struct=table2struct(obj.s_vs_n_sig);
+            save_struct.s_vs_n_ratio_struct=table2struct(obj.s_vs_n_p_ratio);
+            % add electrode names 
+            assert(all(find(obj.elec_ch_valid==1)==obj.elec_ch_clean))
+            save_struct.s_vs_n_struct.elec_ch_label=obj.elec_ch_label;
+            save_struct.s_vs_n_struct.elec_ch_valid=~isnan(obj.elec_ch_valid);
+            save_struct.s_vs_n_struct.elec_ch_clean=obj.elec_ch_clean;
+            save_struct.s_vs_n_struct.bip_elec_ch_valid=ones(length(obj.bip_ch_label_valid),1);
+            save_struct.s_vs_n_struct.elec_pos_mni=obj.elec_ch_pos_mni;
+            save_struct.s_vs_n_struct.bip_elec_pos_mni=obj.bip_ch_pos_mni;
+            
+            save_struct.s_vs_n_struct.elec_HCP_label=obj.elec_ch_HCP_label;
+            save_struct.s_vs_n_struct.bip_HCP_label=obj.bip_ch_HCP_label;
+            
+            
+            save_struct.s_vs_n_struct.bip_elec_ch_label=...
+                arrayfun(@(X) sprintf('%s-%s',obj.bip_ch_label_valid{X,1},obj.bip_ch_label_valid{X,2}),1:size(obj.bip_ch_label_valid,1),'uni',false);
+            save_struct.stim_resp_struct=table2struct(obj.extended_stim_resp_table);
+            save_file=sprintf('%s/%s_%s_%s_extended_stim_resp_struct',obj.save_path,obj.subject_id,'ECOG_SN',obj.modality);
+            save(save_file,'save_struct');
+            
+            
+            python_path='/Users/eghbalhosseini/anaconda3/envs/neural_nlp_2022/bin/python';
+             commandStr = sprintf('%s /Users/eghbalhosseini/MyCodes/ecog_SN/construct_stim_resp_data.py %s %s_%s',python_path,obj.subject_id,'ECOG_SN',obj.modality);
+            [status, commandOut] = system(commandStr);
+            if status==0
+                fprintf('python conversion was successful\n');
+                fprintf(commandOut)
+            else 
+                fprintf('python conversion was NOT SUCCESSFUL\n');
+                fprintf(commandOut)
+            end
+            
+    end     
+    
+    function plot_trial_timecourse(obj,varargin)
+        p=inputParser();
+        addParameter(p, 'signal_type', 'envelope_dec');
+        parse(p, varargin{:});
+        ops = p.Results;
+        elec_flag=ops.signal_type;
+        analysis_path=strcat(obj.save_path,'analysis/trial_timecourse/');
+        save_dir=fullfile(analysis_path,obj.subject_id,elec_flag);
+        if ~exist(save_dir)
+           mkdir(save_dir);
+        end
+        % get s_v_n
+        if isprop(obj,'s_vs_n_sig')
+                s_vs_n=obj.s_vs_n_sig.(elec_flag){1};
+        end 
+        
+        if contains(elec_flag,'bip')
+            elec_labels=obj.bip_ch_label_valid;
+            elec_labels=arrayfun(@(x) [elec_labels{x,1},'-',elec_labels{x,2}],1:size(elec_labels,1),'uni',false);
+        else
+            elec_labels=obj.elec_ch_label;
+        end 
+        
+        condtion_flag='S';
+        [S_ave_tbl,S_table]=obj.get_ave_cond_trial('words',[1:12],'condition',condtion_flag);
+        
+        
+        condtion_flag='N';
+        [N_ave_tbl,N_table]=obj.get_ave_cond_trial('words',[1:12],'condition',condtion_flag);
+
+        S_dat=S_table.(elec_flag){1};
+        N_dat=N_table.(elec_flag){1};
+        cond_resp=obj.get_cond_resp('S');
+        cond_key='fix';
+        fix_act=cellfun(@(x) x.(elec_flag){ismember(x.key,cond_key)},cond_resp,'uni',false);
+        sizes=(cellfun(@size, fix_act,'uni',false));
+        max_second_dim=max(cell2mat(sizes));
+        nan_act=cellfun(@(x) nan*ones(x(1),max_second_dim(2)-x(2)),sizes,'uni',false);
+        fix_nan_act=cellfun(@(x,y) horzcat(x,y),fix_act,nan_act,'uni',false);
+        word_indv_act=[fix_nan_act];
+
+        words_acts=[fix_act];
+
+        for kk=1:12
+            cond_key=['word_',num2str(kk)];
+            word_act=cellfun(@(x) x.(elec_flag){contains(x.key,cond_key)},cond_resp,'uni',false);
+            sizes=(cellfun(@size, word_act,'uni',false));
+            max_second_dim=max(cell2mat(sizes));
+            nan_act=cellfun(@(x) nan*ones(x(1),max_second_dim(2)-x(2)),sizes,'uni',false);
+            word_nan_act=cellfun(@(x,y) horzcat(x,y),word_act,nan_act,'uni',false);
+            word_indv_act=[word_indv_act,word_nan_act];
+            words_acts=[words_acts,word_act];
+        end
+        act_index=cumsum(cellfun(@(x) size(x,2), words_acts),2);
+        words_act=arrayfun(@(x) horzcat(words_acts{x,:}),1:size(words_acts,1),'uni',false)';
+        % add nan
+        sizes=(cellfun(@size, words_act,'uni',false));
+        max_second_dim=max(cell2mat(sizes));
+        nan_acts=cellfun(@(x) nan*ones(x(1),max_second_dim(2)-x(2)),sizes,'uni',false);
+        words_nan_act=cellfun(@(x,y) horzcat(x,y),words_act,nan_acts,'uni',false);
+        word_tensor=cat(3,words_nan_act{:});
+        Sentence_tensor=word_tensor;
+        Sentence_word_act=word_indv_act;
+        act_index_sent=act_index;
+        %% 
+        cond_resp=obj.get_cond_resp('N');
+        cond_key='fix';
+        fix_act=cellfun(@(x) x.(elec_flag){ismember(x.key,cond_key)},cond_resp,'uni',false);
+        sizes=(cellfun(@size, fix_act,'uni',false));
+        max_second_dim=max(cell2mat(sizes));
+        nan_act=cellfun(@(x) nan*ones(x(1),max_second_dim(2)-x(2)),sizes,'uni',false);
+        fix_nan_act=cellfun(@(x,y) horzcat(x,y),fix_act,nan_act,'uni',false);
+        word_indv_act=[fix_nan_act];
+        words_acts=[fix_act];
+        for kk=1:12
+            cond_key=['word_',num2str(kk)];
+            word_act=cellfun(@(x) x.(elec_flag){contains(x.key,cond_key)},cond_resp,'uni',false);
+            sizes=(cellfun(@size, word_act,'uni',false));
+            max_second_dim=max(cell2mat(sizes));
+            nan_act=cellfun(@(x) nan*ones(x(1),max_second_dim(2)-x(2)),sizes,'uni',false);
+            word_nan_act=cellfun(@(x,y) horzcat(x,y),word_act,nan_act,'uni',false);
+            word_indv_act=[word_indv_act,word_nan_act];
+            words_acts=[words_acts,word_act];
+        end
+        act_index=cumsum(cellfun(@(x) size(x,2), words_acts),2);
+        words_act=arrayfun(@(x) horzcat(words_acts{x,:}),1:size(words_acts,1),'uni',false)';
+        % add nan
+        sizes=(cellfun(@size, words_act,'uni',false));
+        max_second_dim=max(cell2mat(sizes));
+        nan_acts=cellfun(@(x) nan*ones(x(1),max_second_dim(2)-x(2)),sizes,'uni',false);
+        words_nan_act=cellfun(@(x,y) horzcat(x,y),words_act,nan_acts,'uni',false);
+        word_tensor=cat(3,words_nan_act{:});
+        Nonword_tensor=word_tensor;
+        Nonword_word_act=word_indv_act;
+        act_index_nonw=act_index;
+        %% 
+        pbar=ProgressBar(size(Sentence_tensor,1));
+        for elec_id=1:size(Sentence_tensor,1)
+            %% 
+            D=squeeze(Sentence_tensor(elec_id,:,:));
+            [~,srt_idx] = sort(sum(isnan(D)));
+            D=D(:,srt_idx);
+            act_index=act_index_sent(srt_idx,:);
+            D_sent=D;
+            act_idx_sent=act_index;
+            %
+            D=squeeze(Nonword_tensor(elec_id,:,:));
+            [~,srt_idx] = sort(sum(isnan(D)));
+            D=D(:,srt_idx);
+            act_index=act_index_nonw(srt_idx,:);
+            act_idx_nonw=act_index;
+            D_nonw=D;
+            
+            min_max=prctile([D_sent(:);D_nonw(:)],[2 98]);
+            
+            f=figure('visible','off');
+            
+            %clf;
+            set(gcf,'position',[31,1,1713,1010]);
+            set(gcf,'position',[-2261 73 2162 1091]);
+            %ax=axes('position',[.05,.25,.42,.7]);
+            ax=axes('position',[.05,.2,.25,.74]);
+            hold on
+            D=D_sent;
+            act_index=act_idx_sent;
+            color_map=mat2cell(inferno(2*size(D,2)),ones(1,2*size(D,2)),3);
+            
+            D_cell=mat2cell(D,size(D,1),ones(1,size(D,2)));
+            D_norm_cell=cellfun(@(x) (x-min_max(1))./(min_max(2)-min_max(1)),D_cell,'UniformOutput',false);
+            D_norm=cell2mat(D_norm_cell);
+            for x=1:size(D_norm,2)
+                hold on
+                plot(D_norm(:,x)+x,'color',color_map{x},'linewidth',1)
+                plot(act_index(x,:),D_norm(act_index(x,:),x)+x,'k','linestyle','none','marker','o','markerfacecolor',[.3,.3,.3],'markersize',2)
+                %yline(x,'linewidth',.5,'color',[.5,.5,.5]);
+                %plot([0 size(D,1)],[x,x],'linewidth',.5,'color',[.5,.5,.5]);
+            end
+            set(ax,'ytick',[1:size(D,1)]);
+            set(ax,'yticklabel','');
+            set(ax,'ylim',[0,size(D,2)+1]);
+            ax.XAxis.TickLength=[0.005,0.01];
+            ax.YAxis.TickLength=[0.005,0.01];
+            ax.Title.String=[elec_labels{elec_id},', ', strrep(elec_flag,'_','-')];
+            set(ax,'xlim',[0 size(D,1)]);
+            pos=get(ax,'position');
+            Newpos=[pos(1) pos(2)-0.1 pos(3) 0.05];
+            
+            
+            ax=axes('position',[.05,.03,.25,.15]);
+            for x=1:size(D_norm,2)
+                hold on
+                plot(D_norm(:,x),'color',[color_map{x},.2],'linewidth',.5)
+            end
+            s_resp=nanmean(D_norm,2);
+            b1=plot(s_resp,'color',[0,0,0],'linewidth',2,'MarkerEdgeColor',[0,0,0],'displayname','S');
+            set(ax,'ylim',min_max);
+            set(ax,'xlim',[0 size(D_norm,1)]);
+            plot([0 size(D_norm,1)],[0,0],'color',[.3,.3,.3],'linewidth',1,'linestyle','--')
+            ax=axes('position',[.65,.8,.3,.18]);
+            D=cellfun(@(x) x(elec_id,:),Sentence_word_act,'uni',false);
+            jumps=cumsum([0,cellfun(@length,D(1,:) )]);
+            for jj=1:size(D,2)
+                D_word=D(:,jj);
+                D_word_mat=cell2mat(D_word);
+                for x=1:size(D_word,1)
+                    hold on
+                    plot(jj*10+[1:length(D_word{x})]+jumps(jj),D_word{x},'color',[color_map{x},.2],'linewidth',.5)
+                end
+                plot(jj*10+[1:size(D_word_mat,2)]+jumps(jj),nanmean(D_word_mat,1),'color',[0,0,0,1],'linewidth',2)
+            end
+            set(ax,'ylim',min_max);
+            set(ax,'xlim',[0,10*size(D,2)+length([D{1,:}])]);
+            plot(get(gca,'xlim'),[0,0],'color',[.3,.3,.3],'linewidth',1,'linestyle','--')
+            
+            % 
+            %ax=axes('position',[.55,.25,.42,.7]);
+            ax=axes('position',[.35,.2,.25,.74]);
+            D=D_nonw;
+            hold on
+            color_map=mat2cell(viridis(2*size(D,2)),ones(1,2*size(D,2)),3);
+            act_index=act_idx_nonw;
+            D_cell=mat2cell(D,size(D,1),ones(1,size(D,2)));
+            D_norm_cell=cellfun(@(x) (x-min_max(1))./(min_max(2)-min_max(1)),D_cell,'UniformOutput',false);
+            D_norm=cell2mat(D_norm_cell);
+            for x=1:size(D_norm,2)
+                hold on
+                plot(D_norm(:,x)+x,'color',color_map{x},'linewidth',1)
+                plot(act_index(x,:),D_norm(act_index(x,:),x)+x,'k','linestyle','none','marker','o','markerfacecolor',[.3,.3,.3],'markersize',2)
+                %yline(x,'linewidth',.5,'color',[.5,.5,.5]);
+                %plot([0 size(D,1)],[x,x],'linewidth',.5,'color',[.5,.5,.5]);
+            end
+            set(ax,'ytick',[1:size(D,1)]);
+            set(ax,'yticklabel','');
+            set(ax,'ylim',[0,size(D,2)+1]);
+            ax.XAxis.TickLength=[0.005,0.01];
+            ax.YAxis.TickLength=[0.005,0.01];
+            set(ax,'xlim',[0 size(D,1)]);
+            pos=get(ax,'position');
+            Newpos=[pos(1) pos(2)-0.1 pos(3) 0.05];
+            
+            ax=axes('position',[.35,.03,.25,.15]);
+            for x=1:size(D_norm,2)
+                hold on
+                plot(D_norm(:,x),'color',[color_map{x},.2],'linewidth',.5)
+            end
+            n_resp=nanmean(D_norm,2);
+            b1=plot(n_resp,'color',[0,0,0],'linewidth',2,'MarkerEdgeColor',[0,0,0],'displayname','N');
+            set(ax,'ylim',min_max);
+            set(ax,'xlim',[0 size(D_norm,1)]);
+            plot(get(gca,'xlim'),[0,0],'color',[.3,.3,.3],'linewidth',1,'linestyle','--')
+            %
+            ax=axes('position',[.65,.6,.3,.18]);
+            D=cellfun(@(x) x(elec_id,:),Nonword_word_act,'uni',false);
+            jumps=cumsum([0,cellfun(@length,D(1,:) )]);
+            for jj=1:size(D,2)
+                D_word=D(:,jj);
+                D_word_mat=cell2mat(D_word);
+                for x=1:size(D_word,1)
+                    hold on
+                    plot(jj*10+[1:length(D_word{x})]+jumps(jj),D_word{x},'color',[color_map{x},.2],'linewidth',.5)
+                end
+                plot(jj*10+[1:size(D_word_mat,2)]+jumps(jj),nanmean(D_word_mat,1),'color',[0,0,0,1],'linewidth',2)
+            end
+            set(ax,'ylim',min_max);
+            set(ax,'xlim',[0,10*size(D,2)+length([D{1,:}])]);
+            
+            plot(get(gca,'xlim'),[0,0],'color',[.3,.3,.3],'linewidth',1,'linestyle','--')
+
+            %
+            % plot average over words
+            %ax=axes('position',[.05,.05,.42,.18]);
+            ax=axes('position',[.65,.05,.3,.18]);
+            D=cellfun(@(x) x(elec_id,:),Nonword_word_act,'uni',false);
+            nonw_fix_resp=nanmean(cell2mat(D(:,1)),2);
+            
+            D=cellfun(@(x) x(elec_id,:),Sentence_word_act,'uni',false);
+            sent_fix_resp=nanmean(cell2mat(D(:,1)),2);
+            
+            
+            s_electrode_resp=vertcat(sent_fix_resp',squeeze(S_dat(elec_id,:,:))');
+            n_electrode_resp=vertcat(nonw_fix_resp',squeeze(N_dat(elec_id,:,:))');
+            word_pos=repmat(1:size(s_electrode_resp,1),size(s_electrode_resp,2),1)'-1;
+             %append fixation respon 
+            b1=plot(mean(word_pos,2)+.1,mean(s_electrode_resp,2),'color',[1,.5,.5],'linewidth',1,'marker','o','MarkerFaceColor',[1,0,0],'MarkerEdgeColor',[1,0,0],'displayname','S');
+            hold on
+            b1=plot(mean(word_pos,2)-.1,mean(n_electrode_resp,2),'color',[.5,.5,1],'linewidth',1,'marker','o','MarkerFaceColor',[0,0,1],'MarkerEdgeColor',[0,0,1],'displayname','N');
+            y=s_electrode_resp;
+            x=word_pos;
+            bl=errorbar(mean(x,2)+.1,mean(y,2),std(y,[],2)./sqrt(size(y,2)));
+            bl.LineStyle='none';
+            bl.Color=[1,.5,.5];
+            bl.LineWidth=2;
+            bl.CapSize=2;
+            hAnnotation = get(bl,'Annotation');hLegendEntry = get(hAnnotation,'LegendInformation');set(hLegendEntry,'IconDisplayStyle','off');
+            %
+            y=n_electrode_resp;
+            x=word_pos;
+            bl=errorbar(mean(x,2)-.1,mean(y,2),std(y,[],2)./sqrt(size(y,2)));
+            bl.LineStyle='none';
+            bl.Color=[.5,.5,1];
+            bl.LineWidth=2;
+            bl.CapSize=2;
+            hAnnotation = get(bl,'Annotation');hLegendEntry = get(hAnnotation,'LegendInformation');set(hLegendEntry,'IconDisplayStyle','off');
+            ax.XAxis.Visible = 'on';
+            ax.XTick=0:max(word_pos(:));
+            ax.XTickLabel{1}='Fix';
+            ax.XLim=[-1,max(word_pos(:))+1];
+            %ax.XTick=1:size(electrode_resp,1);
+            all_points=[s_electrode_resp(:);n_electrode_resp(:)];
+            y_quantile=quantile(all_points,10);
+            h=get(ax,'children');
+            ax.FontSize=12;
+            set(ax,'ydir', 'normal','box','off','ylim',[y_quantile(1),y_quantile(end)]);
+            %set(ax,'ydir', 'normal','box','off','ylim',min_max);
+            ah =get(ax,'children');
+            arrayfun(@(x) set(ah(x),'DisplayName',''),[1:2]);
+            ah(3).DisplayName='N';
+            ah(4).DisplayName='S';
+            set(ax,'children',ah);
+            legend(ah(3:4),'Location','northwest','NumColumns',2)
+            xlabel('word position');
+            ax.YLabel.String='High Gamma (a.u.)';
+            ax.XAxis.LineWidth=2;
+            ax.YAxis.LineWidth=2;
+            ax.Title.String=['S>N, ', num2str(s_vs_n(elec_id))];
+            % plot over time not word_id
+            % ax=axes('position',[.55,.05,.42,.18]);
+            ax=axes('position',[.65,.32,.3,.18]);
+            s_resp=nanmean(D_sent,2);
+            n_resp=nanmean(D_nonw,2);
+            min_max=prctile([s_resp(:);n_resp(:)],[1 99]);
+            b1=plot(s_resp,'color',[1,.5,.5],'linewidth',1,'MarkerEdgeColor',[1,0,0],'displayname','S');
+            hold on
+            b1=plot(n_resp,'color',[.5,.5,1],'linewidth',1,'MarkerEdgeColor',[0,0,1],'displayname','N');
+            set(ax,'ydir', 'normal','box','off','ylim',min_max);
+            set(findall(gcf,'-property','FontSize'),'FontSize',8);
+            set(gcf,'PaperPosition',[.25 .25 8 10])
+            set(gcf,'PaperOrientation','landscape');
+            fname=sprintf('%s_%s_timecourse.pdf',obj.subject_id,elec_labels{elec_id});            
+            print(f, '-fillpage','-dpdf','-opengl', fullfile(save_dir,fname));
+            fname=sprintf('%s_%s_timecourse.png',obj.subject_id,elec_labels{elec_id});            
+            %print(f,'-dpng','-painters', fullfile(save_dir,fname));
+                        
+            close(f);
+            close all
+            pbar.step([],[],[]);
+            
+            %waitfor(findobj('type','figure','number',1));
+            %% 
+        end
+        
+       
+    end
+    
+    function plot_per_shank(obj,varargin)
+        p=inputParser();
+        addParameter(p, 'signal_type', 'envelope_dec');
+        parse(p, varargin{:});
+        ops = p.Results;
+        elec_flag=ops.signal_type;
+        analysis_path=strcat(obj.save_path,'analysis/per_shank/');
+        save_dir=fullfile(analysis_path,obj.subject_id,[obj.modality,'_',elec_flag]);
+        if ~exist(save_dir)
+           mkdir(save_dir);
+        end
+        % get s_v_n
+        if isprop(obj,'s_vs_n_sig')
+                s_vs_n=obj.s_vs_n_sig.(elec_flag){1};
+        end 
+        
+        if contains(elec_flag,'bip')
+            elec_labels=obj.bip_ch_label_valid;
+            elec_labels=arrayfun(@(x) [elec_labels{x,1},'-',elec_labels{x,2}],1:size(elec_labels,1),'uni',false);
+        else
+            elec_labels=obj.elec_ch_label;
+        end 
+        
+        condtion_flag='S';
+        [S_ave_tbl,S_table]=obj.get_ave_cond_trial('words',[1:12],'condition',condtion_flag);
+        cond_resp=obj.get_cond_resp(condtion_flag);
+        S_dat=S_table.(elec_flag){1};
+        cond_key='fix';
+        fix_act=cellfun(@(x) x.(elec_flag){ismember(x.key,cond_key)},cond_resp,'uni',false);
+        fix_act=cellfun(@(x) nanmean(x,2),fix_act,'uni',false);
+        fix_act=cat(2,fix_act{:});
+        S_dat=cat(3,fix_act,S_dat);
+        
+        
+        
+        condtion_flag='N';
+        [N_ave_tbl,N_table]=obj.get_ave_cond_trial('words',[1:12],'condition',condtion_flag);
+        cond_resp=obj.get_cond_resp(condtion_flag);
+        N_dat=N_table.(elec_flag){1};
+        cond_key='fix';
+        fix_act=cellfun(@(x) x.(elec_flag){ismember(x.key,cond_key)},cond_resp,'uni',false);
+        fix_act=cellfun(@(x) nanmean(x,2),fix_act,'uni',false);
+        fix_act=cat(2,fix_act{:});
+        N_dat=cat(3,fix_act,N_dat);
+        
+        
+        
+        pat = lettersPattern;
+        elec_names=vertcat(cellfun(@(x) strsplit(x,'-'),elec_labels,'uni',false )');
+        elec_names=cellfun(@(x) x(1),elec_names);
+        elec_unique=cellfun(@(x) extract(x,pat) , elec_names);
+        
+        
+        shanks=unique(elec_unique,'stable');
+        [shanks,ia,ic] = unique(elec_unique,'stable');
+        
+        elec_per_shank_counts = accumarray(ic,1);
+        
+        
+        f=figure('visible','off');            
+        %clf;
+        set(gcf,'position',[-2261 73 2162 1091]);
+        subplot_index = reshape(1:length(shanks)*max(elec_per_shank_counts),  length(shanks),max(elec_per_shank_counts)).';
+        tiledlayout(max(elec_per_shank_counts),length(shanks),'Padding','tight','TileSpacing','tight');
+        %pbar=ProgressBar(length(elec_labels));
+        
+        for idx=1:length(shanks)
+            index_set=subplot_index(:,idx);
+            electrodes_in_group=(ic==idx);
+            shank_labels=elec_labels(electrodes_in_group);
+            for id_col=1:length(shank_labels)
+                %ax=subplot(max(elec_per_shank_counts),length(shanks),index_set(id_col));
+                ax=nexttile(index_set(id_col));
+                elec_id=find(ismember(elec_labels,shank_labels{id_col}));
+                assert(length(elec_id)==1);
+                s_electrode_resp=squeeze(S_dat(elec_id,:,:))';
+                n_electrode_resp=squeeze(N_dat(elec_id,:,:))';
+                word_pos=repmat(1:size(s_electrode_resp,1),size(s_electrode_resp,2),1)'-1;
+                
+                b1=plot(mean(word_pos,2)+.1,mean(s_electrode_resp,2),'color',[1,.5,.5],'linewidth',.5,'marker','o','MarkerFaceColor',[1,0,0],'MarkerEdgeColor',[1,0,0],'displayname','S','markersize',1);
+                hold on
+                b1=plot(mean(word_pos,2)-.1,mean(n_electrode_resp,2),'color',[.5,.5,1],'linewidth',.5,'marker','o','MarkerFaceColor',[0,0,1],'MarkerEdgeColor',[0,0,1],'displayname','N','markersize',1);
+                y=s_electrode_resp;
+                x=word_pos;
+                bl=errorbar(mean(x,2)+.1,mean(y,2),std(y,[],2)./sqrt(size(y,2)));
+                bl.LineStyle='none';
+                bl.Color=[1,.5,.5];
+                bl.LineWidth=.25;
+                bl.CapSize=0;
+                hAnnotation = get(bl,'Annotation');hLegendEntry = get(hAnnotation,'LegendInformation');set(hLegendEntry,'IconDisplayStyle','off');
+                %
+                y=n_electrode_resp;
+                x=word_pos;
+                bl=errorbar(mean(x,2)-.1,mean(y,2),std(y,[],2)./sqrt(size(y,2)));
+                bl.LineStyle='none';
+                bl.Color=[.5,.5,1];
+                bl.LineWidth=.25;
+                bl.CapSize=0;
+                hAnnotation = get(bl,'Annotation');hLegendEntry = get(hAnnotation,'LegendInformation');set(hLegendEntry,'IconDisplayStyle','off');
+                ax.XAxis.Visible = 'off';
+                ax.YAxis.Visible = 'off';
+                ax.XTick=[];
+                ax.XLim=[-1,max(word_pos(:))+1];
+                all_points=[s_electrode_resp(:);n_electrode_resp(:)];
+                y_quantile=quantile(all_points,6);
+                h=get(ax,'children');
+                ax.FontSize=4;
+                set(ax,'ydir', 'normal','box','off','ylim',[y_quantile(1),y_quantile(end)]);
+                ax.Title.String=shank_labels{id_col};
+                ax.Title.FontSize=5;
+                if s_vs_n(elec_id)==1
+                    ax.Title.FontWeight='bold';
+                    ax.XAxis.Visible = 'on';
+                    ax.YAxis.Visible = 'on';
+                    ax.XTick=[];
+                    ax.YTick=[];
+                    ax.Box='on';
+                    ax.LineWidth=1.25;
+                    ax.Title.FontSize=5;
+                    
+                    
+                else
+                    ax.Title.FontWeight='normal';
+                    ax.Title.FontSize=5;
+                end
+                if idx==1 && id_col==1
+                    ax.XAxis.Visible = 'on';
+                    ax.XTick=0:2:max(word_pos(:));
+                    ax.XTickLabel{1}='Fix';
+                    lgd=legend;
+                    lgd.FontSize=5;
+                    lgd.FontWeight='bold';
+                    lgd.NumColumns=1;
+                    xx1=lgd.Position;
+                    lgd.Position=[xx1(1),xx1(2),.015,.015];
+                end 
+                %pbar.step([],[],[]);
+            end
+        end 
+        set(gcf,'PaperOrientation','landscape');
+        fname=sprintf('%s_%s_%s_per_shank.pdf',obj.subject_id,obj.modality,ops.signal_type);            
+        print(f, '-fillpage','-dpdf','-painters', fullfile(save_dir,fname));
+        close(f);
+            close all
     end 
-end
+   
+    end 
+end 
 

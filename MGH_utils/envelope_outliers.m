@@ -40,6 +40,9 @@ else
 end
 
 % normalize by 90% of the distribution
+% zero out first 50 and last 50 samples 
+envelopes(1:50,:)=0;
+envelopes(end-50:end,:)=0;
 s = quantile(envelopes, ops.percentile);
 Z = envelopes ./ repmat(s, size(envelopes,1),1);
 clear sd;
