@@ -64,8 +64,8 @@ post_probe_start=find(diff(probe_bit.*expr_frame)==-1)+1;
 trial_keys={audio_start,audio_end,pre_probe_start,probe_start,post_probe_start};
 key_tags={'audio_start','audio_end','pre_probe','probe','post_probe'};
 buffer_idx=50*sampling_freq;
-trial_based_frame=[1:max(trial_end)+buffer_idx];
 
+max_trial_time=[0];
 all_trial_timing={};
 for tr=1:length(trial_start)
     start_idx=trial_start(tr);
@@ -75,8 +75,10 @@ for tr=1:length(trial_start)
     % do it with substraction
     all_trial_timing{tr,1}=[start_idx,end_idx];
     all_trial_timing{tr,2}=tr_key_idx;
+    max_trial_time=max(max_trial_time,end_idx);
 end 
 
+trial_based_frame=[1:min(max(max_trial_time)+buffer_idx,length(TrigMat1))];
 
 end
 
