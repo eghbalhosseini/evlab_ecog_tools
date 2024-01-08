@@ -186,7 +186,8 @@ classdef ecog_data < dynamicprops
             fprintf('doing electrode mapping onto mni\n');
             clinical_info=obj.filt_ops.elec_clinic_info;
             missing_elec=setdiff(obj.elec_ch_label,clinical_info.label);
-            assert(isempty(missing_elec),sprintf('%s, missing: %s',obj.subject_id,strjoin(missing_elec,', ')));
+            cellfun(@(x) '%s')
+            assert(length(missing_elec)==0,sprintf('missing:',strjoin(missing_elec,'')));
             assert(all(ismember(obj.elec_ch_label,clinical_info.label)));
             chn_pos_in_mni={};
             chn_label_HCP={};

@@ -113,9 +113,11 @@ classdef ecog_dnn_data < ecog_data
             end
             
         end
-        function obj=make_extended_stim_resp_mat(obj,varargin)
+        function obj=make_extended_stim_resp_mat_for_dnn(obj,varargin)
             p=inputParser();
             addParameter(p, 'words', 'all');
+            addParameter(p,'python_path','/Users/eghbalhosseini/miniconda3/envs/neural_align/bin/python')
+            addParameter(p,'exec_path','/Users/eghbalhosseini/miniconda3/envs/neural_align/bin/python')
             parse(p, varargin{:});
             ops = p.Results;
             %get sentence id from events 
@@ -184,12 +186,13 @@ classdef ecog_dnn_data < ecog_data
             save_struct.s_vs_n_struct.bip_elec_ch_label=...
                 arrayfun(@(X) sprintf('%s-%s',obj.bip_ch_label_valid{X,1},obj.bip_ch_label_valid{X,2}),1:size(obj.bip_ch_label_valid,1),'uni',false);
             save_struct.stim_resp_struct=table2struct(obj.extended_stim_resp_table);
-            save_file=sprintf('%s/%s_%s_%s_extended_stim_resp_struct',obj.save_path,obj.subject_id,obj.experiment,obj.modality)
-            save(save_file,'save_struct');
+            save_file=sprintf('%s/%s_%s_%s_extended_stim_resp_struct',obj.save_path,obj.subject_id,obj.experiment,obj.modality);
+            save(save_file,'save_struct','-v7');
             % run python 
             %python_path='/Users/eghbalhosseini/anaconda3/envs/neural_nlp_1/bin/python';
-            python_path='/Users/eghbalhosseini/anaconda3/envs/fmri_DNN/bin/python';
-            commandStr = sprintf('%s /Users/eghbalhosseini/MyCodes/ecog_DNN/ecog_data_analysis/construct_stim_resp_data.py %s %s_%s',python_path,obj.subject_id,obj.experiment,[obj.modality]);
+            python_path=ops.python_path;
+            exec_path=ops.exec_path;
+            commandStr = sprintf('%s %s %s %s_%s %s',python_path,exec_path,obj.subject_id,obj.experiment,obj.modality, obj.save_path );
             [status, commandOut] = system(commandStr);
             if status==0
                 fprintf('python conversion was successful\n');
