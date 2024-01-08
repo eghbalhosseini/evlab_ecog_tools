@@ -118,7 +118,7 @@ if any(strcmp('VisualInspectFromAux',ops.steps))
     fprintf('\n reading visually inspected channels from auxilary data...\n');
     aux_chan_user_deselect=erase(ops.aux_data.filt_ops.ecog_channels_labels(ops.aux_data.filt_ops.ecog_channels_user_deselect),'_');
     [C,ia,ib]=intersect(ops.elecnames,aux_chan_user_deselect,'stable');
-    assert(all(ia==cell2mat(cellfun(@(x) find(ismember(ops.elecnames,x)),aux_chan_user_deselect,'uni',false))));
+    assert(all(sort(ia)==sort(cell2mat(cellfun(@(x) find(ismember(ops.elecnames,x)),aux_chan_user_deselect,'uni',false)))));
     ops.ecog_channels_user_deselect=ia;
     ops.steps = setdiff(ops.steps, 'VisualInspectFromAux');    
     ops.perfromed_steps=[ops.perfromed_steps;'VisualInspectFromAux'];

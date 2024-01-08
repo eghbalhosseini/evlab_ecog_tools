@@ -183,9 +183,9 @@ classdef ecog_data < dynamicprops
             obj.elec_ch_pos_anat=ch_table;
         end
         function obj=connect_mni_brain(obj)
-            fprintf('doing soemting')
+            fprintf('doing electrode mapping onto mni\n');
             clinical_info=obj.filt_ops.elec_clinic_info;
-            assert(all(ismember(clinical_info.label,obj.elec_ch_label)))
+            assert(all(ismember(obj.elec_ch_label,clinical_info.label)));
             chn_pos_in_mni={};
             chn_label_HCP={};
             chn_weigth_HCP={};
@@ -229,20 +229,20 @@ classdef ecog_data < dynamicprops
             obj.bip_ch_HCP_label=bip_chn_label_HCP;
             obj.bip_ch_HCP_weight=bip_chn_weigth_HCP;
             % add anatomy 
-            icbm_file=load('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/CortexLowRes_15000V.mat');
+            icbm_file=load('icmb152_pial.mat');
             if not(isprop(obj,'icmb152_pial'))
                 P = addprop(obj,'icmb152_pial');
             end
-            obj.icmb152_pial=icbm_file;
+            obj.icmb152_pial=icbm_file.icmb152_pial;
             end 
-        function obj=align_with_lang_atlas(obj)
+            function obj=align_with_lang_atlas(obj,lang_atlas_dir)
             fprintf('doing something\n')
-            info_parc=niftiinfo('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii');
-            V_parc=niftiread('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii');
-            info_prb=niftiinfo('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/LanA/SPM/LanA_n806.nii');
-            V_prb=niftiread('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/LanA/SPM/LanA_n806.nii');
-            v_mni=niftiread('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/mni_icbm152_nlin_asym_09b/mni_icbm152_t1_tal_nlin_asym_09b_hires.nii');
-            info_mni=niftiinfo('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/mni_icbm152_nlin_asym_09b/mni_icbm152_t1_tal_nlin_asym_09b_hires.nii');
+            info_parc=niftiinfo([lang_atlas_dir,'/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii']);
+            V_parc=niftiread([lang_atlas_dir,'/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii']);
+            info_prb=niftiinfo([lang_atlas_dir,'/LanA/SPM/LanA_n806.nii']);
+            V_prb=niftiread([lang_atlas_dir,'/LanA/SPM/LanA_n806.nii']);
+            v_mni=niftiread([lang_atlas_dir,'/mni_icbm152_nlin_asym_09b/mni_icbm152_t1_tal_nlin_asym_09b_hires.nii']);
+            info_mni=niftiinfo([lang_atlas_dir,'/mni_icbm152_nlin_asym_09b/mni_icbm152_t1_tal_nlin_asym_09b_hires.nii']);
             v = VideoWriter('/Users/eghbalhosseini/Desktop/parc_y.avi');
             corner_x=[90:-2:-90];
             corner_y=[-126:2:90];

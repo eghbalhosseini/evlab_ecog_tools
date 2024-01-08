@@ -35,7 +35,7 @@ classdef ecog_analysis
             switch ops.elec_mode
                 case 'bip_elec'
                     elec_loc=obj.ecog_data.bip_ch_pos_anat;
-                    elec_label=obj.ecog_data.biop_ch_label_valid;
+                    elec_label=obj.ecog_data.bip_ch_label_valid;
                     elec_label=cellfun(@(x,y) erase([x,'-',y],'_'),elec_label(:,1),elec_label(:,2),'uni',false);
                     if ops.zscore
                         elec_flag='bip_elec_data_zs_dec';
@@ -168,6 +168,7 @@ classdef ecog_analysis
             % get significant electrodes 
             sig_elec_tbl=obj.ecog_data.s_vs_n_sig;
             sig_elec_loc=cell2mat(sig_elec_tbl.([ops.elec_mode,'_data_dec']));
+
             % get pials 
             lh_pial=obj.ecog_data.lh_pial;
             rh_pial=obj.ecog_data.rh_pial;
@@ -175,7 +176,7 @@ classdef ecog_analysis
             switch ops.elec_mode
                 case 'bip_elec'
                     elec_loc=obj.ecog_data.bip_ch_pos_anat;
-                    elec_label=obj.ecog_data.biop_ch_label_valid;
+                    elec_label=obj.ecog_data.bip_ch_label_valid;
                     elec_label=cellfun(@(x,y) erase([x,'-',y],'_'),elec_label(:,1),elec_label(:,2),'uni',false);
                     if ops.zscore
                         elec_flag='bip_elec_data_zs_dec';
@@ -206,8 +207,8 @@ classdef ecog_analysis
              
              %% left 
              pp=0;
-             L_labels=cellfun(@(x) x(1)=='L',elec_label(sig_elec_loc));
-             L_loc=cellfun(@(x) x(1)=='L',sig_elec_tbl.label);
+             L_loc=cellfun(@(x) x(1)=='L',elec_label(sig_elec_loc));
+             
              if any(L_loc)
                  left_tbl=sig_elec_tbl(L_loc,:);
                  nvertices=size(lh_pial.vert,1);
@@ -402,13 +403,14 @@ classdef ecog_analysis
             switch ops.elec_mode
                 case 'bip_elec'
                     elec_loc=obj.ecog_data.bip_ch_pos_anat;
-                    elec_label=obj.ecog_data.biop_ch_label_valid;
+                    elec_label=obj.ecog_data.bip_ch_label_valid;
                     elec_label=cellfun(@(x,y) erase([x,'-',y],'_'),elec_label(:,1),elec_label(:,2),'uni',false);
                     if ops.zscore
                         elec_flag='bip_elec_data_zs_dec';
                     else 
                         elec_flag='bip_elec_data_dec';
                     end 
+
                 case 'elec'
                     elec_loc=obj.ecog_data.elec_ch_pos_anat;
                     elec_label=cellfun(@(x) erase(x,'_'),obj.ecog_data.elec_ch_label,'uni',false);
@@ -424,6 +426,7 @@ classdef ecog_analysis
             % get significant electrodes 
             sig_elec_tbl=obj.ecog_data.s_vs_n_sig;
             sig_elec_loc=cell2mat(sig_elec_tbl.([ops.elec_mode,'_data_dec']));
+                        
             % get electrode locations 
             
             % do some checks first 
