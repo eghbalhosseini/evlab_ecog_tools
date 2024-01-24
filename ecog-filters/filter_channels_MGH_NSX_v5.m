@@ -13,6 +13,7 @@ addParameter(p,'notchbw',1);
 addParameter(p,'notchfreqs',[60, 120, 180, 240]);
 addParameter(p,'fsDownsample',128);
 addParameter(p,'steps',{'highpass', 'global_car', 'notch','IEDremovalFromAux','High60HzFromAux','VisualInspectFromAux','removeOutliers'})
+addParameter(p,'do_plot',false)
 parse(p, varargin{:});
 ops = p.Results;
 
@@ -113,6 +114,11 @@ elseif any(strcmp('High60HzFromAux',ops.steps))
     ops.steps = setdiff(ops.steps, 'High60HzFromAux');
     ops.perfromed_steps=[ops.perfromed_steps;'High60HzFromAux'];
 end
+%% do a mandatory highpass 
+fprintf('\n High-pass filtering the signal...\n');
+[signal,hp_ops] = hp_filt(signal, ops.sr, 'order', ops.hporder, 'cutoff', ops.hpcutoff);
+ops.step_ops.('highpass')=hp_ops;
+ops.perfromed_steps=[ops.perfromed_steps;'hp_filter'];
 %% visual inpection 
 if any(strcmp('VisualInspectFromAux',ops.steps))
     fprintf('\n reading visually inspected channels from auxilary data...\n');
@@ -127,11 +133,12 @@ elseif any(strcmp('VisualInspect',ops.steps))
     ecog_channels_selected = setdiff(ops.elecids,union(func_col(ops.ecog_channels_noise_5std_deselected),func_col(ops.ecog_channels_IED_deselected)),'stable');
     valid_channels=ops.elecids*nan;
     valid_channels(ecog_channels_selected)=1;
-    plot_channels(signal,ops.sr,ops.elec_color_info(:,2),ops.elec_color_info(:,1),valid_channels)
-    waitfor(findobj('type','figure','number',1));
-    prompt='\n additional channels to remove? format :[1,2] ';
-    ops.ecog_channels_user_deselect=input(prompt);
-    ops.steps = setdiff(ops.steps, 'VisualInspect');    
+    
+        plot_channels(signal,ops.sr,ops.elec_color_info(:,2),ops.elec_color_info(:,1),valid_channels)
+        waitfor(findobj('type','figure','number',1));
+        prompt='\n additional channels to remove? format :[1,2] ';
+        ops.ecog_channels_user_deselect=input(prompt);
+        ops.steps = setdiff(ops.steps, 'VisualInspect');    
 else 
     ops.ecog_channels_user_deselect=[];
 end 
@@ -145,10 +152,12 @@ ops.ecog_valid_chan_ids=valid_channels;
 for s_id=1:numel(ops.steps)
     switch ops.steps{s_id}
         case 'highpass'
-            fprintf('\n High-pass filtering the signal...\n');
-            [signal,hp_ops] = hp_filt(signal, ops.sr, 'order', ops.hporder, 'cutoff', ops.hpcutoff);
-            ops.step_ops.('highpass')=hp_ops;
-            ops.perfromed_steps=[ops.perfromed_steps;'hp_filter'];
+            fprintf('\n already have done this!...\n');
+        % case 'highpass'
+        %     fprintf('\n High-pass filtering the signal...\n');
+        %     [signal,hp_ops] = hp_filt(signal, ops.sr, 'order', ops.hporder, 'cutoff', ops.hpcutoff);
+        %     ops.step_ops.('highpass')=hp_ops;
+        %     ops.perfromed_steps=[ops.perfromed_steps;'hp_filter'];
         case 'global_car'
             fprintf('\n global common source averaging based on good electrodes...\n');
             overall_mean=mean(signal(:,ops.ecog_channels_selected),2);
@@ -156,7 +165,7 @@ for s_id=1:numel(ops.steps)
             ops.perfromed_steps=[ops.perfromed_steps;'global_car'];
         case 'shank_car' % this one needs additional workd 
             fprintf('\n common source averaging based on good electrodes in each shank...\n');
-            comm_src_ave(signal,ops)
+            [signal,ops]=comm_src_ave(signal,ops);
         case 'notch'
             fprintf('\n Notch filtering line noise...\n');
             [signal,notch_ops] = notch_filt(signal, sr);
@@ -168,9 +177,10 @@ for s_id=1:numel(ops.steps)
             error('\n step %s is not recognized \n', ops.steps{s_id})
     end 
 end 
-
+if ops.do_plot
 plot_channels(signal,ops.sr,ops.elec_color_info(:,2),ops.elec_color_info(:,1),ops.ecog_valid_chan_ids)
 waitfor(findobj('type','figure','number',1));
+end 
 
 %% create bipolar names
 fprintf('\n creating names for bipolar pairs...\n');
@@ -194,8 +204,10 @@ ops.bip_elec_color_info_valid=horzcat(ops.bip_elecnames_valid,bip_colors_valid);
 fprintf(1, '\n creating a bipolar version of the signal... \n');
 signal_bipolar=make_bipolar_signal(signal,ops);
 ops.preproc_step=[ops.perfromed_steps;'created_bipolar_signal'];
+if ops.do_plot
 plot_channels(signal_bipolar,ops.sr,ops.bip_elec_color_info_valid(:,2),ops.bip_elec_color_info_valid(:,1),ones(size(signal_bipolar,2),1),'timing',ops.timing)
 waitfor(findobj('type','figure','number',1));
+end 
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -237,9 +249,10 @@ end
 fprintf(1, '\n downsampling \n');
 signal_hiblert_bp=resample(signal_hiblert_bp,ops.fsDownsample,ops.sr);
 signal_hilbert_zs=resample(signal_hilbert_zs,ops.fsDownsample,ops.sr);
+if ops.do_plot
 plot_channels(signal_hiblert_bp,ops.sr,ops.elec_color_info(:,2),ops.elec_color_info(:,1),valid_channels)
 waitfor(findobj('type','figure','number',1));
-
+end 
 ops.step_ops.('gaussian_hilbert')=gaussian_ops;
 ops.perfromed_steps=[ops.perfromed_steps;'extracting_unipolar_gamma_envelope_gaussain'];
 %% SNH method using a bandpass butterworth electrode 
@@ -255,9 +268,10 @@ envelopes = bandpass_envelopes(signal, ops.sr, cutoffs, order);
 fprintf(1, '\n downsampling... \n');
 envelopes=resample(envelopes,ops.fsDownsample,ops.sr);
 % do some checks 
+if ops.do_plot
 plot_channels(envelopes,ops.sr,ops.elec_color_info(:,2),ops.elec_color_info(:,1),valid_channels)
 waitfor(findobj('type','figure','number',1));
-
+end 
 ops.step_ops.('bandpass_hilbert')=bandpass_ops;
 ops.perfromed_steps=[ops.perfromed_steps;'extracting_unipolar_gamma_envelope_bandpass'];
 %% bipolar gaussian filtering 
@@ -279,8 +293,10 @@ signal_bipolar_hiblert_bp=resample(signal_bipolar_hiblert_bp,ops.fsDownsample,op
 signal_bipolar_hiblert_zs=resample(signal_bipolar_hiblert_zs,ops.fsDownsample,ops.sr);
 
 % plot throughout 
+if ops.do_plot
 plot_channels(signal_bipolar_hiblert_zs,ops.sr,ops.bip_elec_color_info_valid(:,2),ops.bip_elec_color_info_valid(:,1),ones(size(signal_bipolar_hiblert_zs,2),1),'timing',ops.timing)
 waitfor(findobj('type','figure','number',1));
+end 
 ops.perfromed_steps=[ops.perfromed_steps;'extracting_bipolar_gamma_envelope_gaussain'];
 %% 
 fprintf(1, '\n Extracting bipolar high gamma envelope based on band-pass filtering  \n');
@@ -288,8 +304,10 @@ fprintf(1, '\n perfoming bandpass filtering and reampling  \n');
 envelopes_bipolar = bandpass_envelopes(signal_bipolar, ops.sr, cutoffs, order);
 envelopes_bipolar=resample(envelopes_bipolar,ops.fsDownsample,ops.sr);
 
+if ops.do_plot
 plot_channels(envelopes_bipolar,ops.sr,ops.bip_elec_color_info_valid(:,2),ops.bip_elec_color_info_valid(:,1),ones(size(signal_bipolar_hiblert_zs,2),1),'timing',ops.timing)
 waitfor(findobj('type','figure','number',1));
+end 
 ops.perfromed_steps=[ops.perfromed_steps;'extracting_unipolar_gamma_envelope_bandpass'];
 %% do oulier rejection based on 90%: 
 
@@ -341,6 +359,6 @@ if ~isempty(ops.aux_data)
 end 
 dataout.ops= ops;
 fprintf('\n saving results ...\n');
-%save(dataout.MetaTags.fullPath,'dataout','-v7.3');
+save(dataout.MetaTags.fullPath,'dataout','-v7.3');
 fprintf('\n done! file is saved at %s \n',dataout.MetaTags.fullPath);
 end

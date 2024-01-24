@@ -715,7 +715,7 @@ classdef ecog_analysis
                mkdir(strcat(analysis_path));
             end
             set(gcf,'PaperOrientation','landscape');
-            print(f, '-bestfit','-dpdf','-opengl', strcat(analysis_path,'/',obj.ecog_data.subject_id,'_anatomy_s_v_n_',obj.ecog_data.modality,'_',ops.elec_mode,'_zscore_',num2str(ops.zscore),'.pdf'));
+            print(f, '-bestfit','-dpdf','-opengl', strcat(analysis_path,'/',obj.ecog_data.subject_id,'_anatomy_s_v_n_',obj.ecog_data.modality,'_',ops.elec_mode,'_zscore_',num2str(ops.zscore),'_v2.pdf'));
             close(f)
         end
         

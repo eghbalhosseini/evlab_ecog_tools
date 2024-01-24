@@ -12,6 +12,7 @@ classdef ecog_dnn_data < ecog_data
         end
         function obj=add_sn_results(obj,sn_data)
             obj.s_vs_n_ops=sn_data.s_vs_n_ops;
+            obj.sn_data_ops=sn_data.filt_ops;
             % get elec alignments:
             % uni
             sn_ch_label=sn_data.elec_ch_label;
@@ -125,7 +126,7 @@ classdef ecog_dnn_data < ecog_data
             list_id=obj.events_table.final_list;
             trial_id=obj.events_table.trial;
             trial_onset=obj.events_table.trial_onset;
-            
+            final_condition=obj.events_table.final_condition;
             aud_name=erase(aud_name,'.wav');
             aud_transcript=obj.events_table.final_audio_transcript;
             % 
@@ -143,13 +144,16 @@ classdef ecog_dnn_data < ecog_data
             
             B=obj.get_average(obj.trial_data);
             word_data=obj.get_value(B,'key','word','type','contain');
+            % add few additional name to word_data
             word_dat_mod=arrayfun(@(x) [cell2table(repmat(aud_name(x),size(word_data{x},1),1),"VariableNames",{'stim_name'}),word_data{x}], 1:length(word_data),'uni',false)';
             word_dat_mod=arrayfun(@(x) [cell2table(repmat({x},size(word_dat_mod{x},1),1),"VariableNames",{'Trial_abs_id'}),word_dat_mod{x}], 1:length(word_dat_mod),'uni',false)';
             word_dat_mod=arrayfun(@(x) [cell2table(repmat({trial_abs_onset(x)},size(word_dat_mod{x},1),1),"VariableNames",{'Trial_abs_onset'}),word_dat_mod{x}], 1:length(word_dat_mod),'uni',false)';
             word_dat_mod=arrayfun(@(x) [cell2table(repmat({trial_id(x)},size(word_dat_mod{x},1),1),"VariableNames",{'Trial_id'}),word_dat_mod{x}], 1:length(word_dat_mod),'uni',false)';
             word_dat_mod=arrayfun(@(x) [cell2table(repmat({trial_onset(x)},size(word_dat_mod{x},1),1),"VariableNames",{'Trial_onset'}),word_dat_mod{x}], 1:length(word_dat_mod),'uni',false)';
             word_dat_mod=arrayfun(@(x) [cell2table(repmat({list_id(x)},size(word_dat_mod{x},1),1),"VariableNames",{'list_id'}),word_dat_mod{x}], 1:length(word_dat_mod),'uni',false)';
+            word_dat_mod=arrayfun(@(x) [cell2table(repmat({final_condition(x)},size(word_dat_mod{x},1),1),"VariableNames",{'Trial_condition'}),word_dat_mod{x}], 1:length(word_dat_mod),'uni',false)';
             all_dat=vertcat(word_dat_mod{:});
+            
             stim_id=extract(all_dat.stim_name,digitsPattern);
             stim_id=num2cell(cellfun(@(x) str2num(x),stim_id));
             word_id=extract(all_dat.key,digitsPattern);
@@ -157,10 +161,9 @@ classdef ecog_dnn_data < ecog_data
             stim_types={'S','N'};
             stim_type=cellfun(@(x) stim_types{isempty(regexp(x,'sentence'))+1},all_dat.stim_name,'uni',false);
             stim_value=cellfun(@(x) aud_transcript{find(ismember(aud_name,x),1,'first')},all_dat.stim_name,'uni',false);
-            
-            stim_resp_table=[cell2table([stim_id,word_id,stim_type,stim_value],"VariableNames",{'stim_id','word_id','stim_type','stim_value'}),all_dat];
-            
-            
+            stimulus_id=num2cell([1:size(all_dat,1)]');
+            stim_resp_table=[cell2table([stim_id,word_id,stim_type,stim_value,stimulus_id],"VariableNames",{'stim_id','word_id','stim_type','stim_value','stimulus_id'}),all_dat];
+            assert(not(sum(sum(isnan(horzcat(stim_resp_table.elec_data_dec{:}))))));            
             % add stim_resp_table to the object 
             if not(isprop(obj,'extended_stim_resp_table'))
                 P = addprop(obj,'extended_stim_resp_table');
@@ -186,19 +189,20 @@ classdef ecog_dnn_data < ecog_data
             save_struct.s_vs_n_struct.bip_elec_ch_label=...
                 arrayfun(@(X) sprintf('%s-%s',obj.bip_ch_label_valid{X,1},obj.bip_ch_label_valid{X,2}),1:size(obj.bip_ch_label_valid,1),'uni',false);
             save_struct.stim_resp_struct=table2struct(obj.extended_stim_resp_table);
-            save_file=sprintf('%s/%s_%s_%s_extended_stim_resp_struct',obj.save_path,obj.subject_id,obj.experiment,obj.modality);
+            save_file=sprintf('%s/stim_resp_mat/%s_%s_%s_extended_stim_resp_struct',obj.save_path,obj.subject_id,obj.experiment,obj.modality);
             save(save_file,'save_struct','-v7');
             % run python 
             %python_path='/Users/eghbalhosseini/anaconda3/envs/neural_nlp_1/bin/python';
             python_path=ops.python_path;
             exec_path=ops.exec_path;
-            commandStr = sprintf('%s %s %s %s_%s %s',python_path,exec_path,obj.subject_id,obj.experiment,obj.modality, obj.save_path );
+            commandStr = sprintf('%s %s %s %s_%s %s',python_path,exec_path,obj.subject_id,obj.experiment,obj.modality, fullfile(obj.save_path,'stim_resp_mat') );
             [status, commandOut] = system(commandStr);
             if status==0
                 fprintf('python conversion was successful\n');
-                fprintf(commandOut)
+                disp(commandOut)
             else 
-                fprintf(commandOut)
+                fprintf('python conversion was not successful\n');
+                disp(commandOut)
             end
             
         end

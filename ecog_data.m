@@ -13,6 +13,7 @@ classdef ecog_data < dynamicprops
         bip_envelopes_dec
         %% timing 
         trial_timing_dec
+        trial_timing
         %% info 
         info
         events_table
@@ -68,6 +69,7 @@ classdef ecog_data < dynamicprops
         s_vs_n_sig
         s_vs_n_p_ratio
         s_vs_n_ops
+        sn_data_ops
         %% trial data 
         trial_data
     end
@@ -185,15 +187,15 @@ classdef ecog_data < dynamicprops
         function obj=connect_mni_brain(obj)
             fprintf('doing electrode mapping onto mni\n');
             clinical_info=obj.filt_ops.elec_clinic_info;
-            missing_elec=setdiff(obj.elec_ch_label,clinical_info.label);
+            missing_elec=setdiff(lower(obj.elec_ch_label),lower(clinical_info.label));
             assert(isempty(missing_elec),sprintf('%s, missing: %s',obj.subject_id,strjoin(missing_elec,', ')));
-            assert(all(ismember(obj.elec_ch_label,clinical_info.label)));
+            assert(all(ismember(lower(obj.elec_ch_label),lower(clinical_info.label))));
             chn_pos_in_mni={};
             chn_label_HCP={};
             chn_weigth_HCP={};
             for k_ch=1:length(obj.elec_ch_label)
                 ch_id=obj.elec_ch_label{k_ch};
-                chan_loc=find(ismember(clinical_info.label,ch_id));
+                chan_loc=find(ismember(lower(clinical_info.label),lower(ch_id)));
                 assert(length(chan_loc)==1);
                 ch_info=clinical_info(chan_loc,:);
                 chn_pos_in_mni{k_ch,1}=[ch_info.mni_linear_x,ch_info.mni_linear_y,ch_info.mni_linear_z];
@@ -210,9 +212,9 @@ classdef ecog_data < dynamicprops
             for k_ch=1:length(obj.bip_ch_label_valid)
                 bip_1=obj.bip_ch_label_valid{k_ch,1};
                 bip_2=obj.bip_ch_label_valid{k_ch,2};
-                bip_1_chan_loc=find(ismember(clinical_info.label,bip_1));
+                bip_1_chan_loc=find(ismember(lower(clinical_info.label),lower(bip_1)));
                 assert(length(bip_1_chan_loc)==1);
-                bip_2_chan_loc=find(ismember(clinical_info.label,bip_2));
+                bip_2_chan_loc=find(ismember(lower(clinical_info.label),lower(bip_2)));
                 assert(length(bip_2_chan_loc)==1);
                 bip_1_ch_info=clinical_info(bip_1_chan_loc,:);
                 bip_2_ch_info=clinical_info(bip_2_chan_loc,:);
@@ -237,7 +239,7 @@ classdef ecog_data < dynamicprops
             end
             obj.icmb152_pial=icbm_file.icmb152_pial;
             end 
-            function obj=align_with_lang_atlas(obj,lang_atlas_dir)
+        function obj=align_with_lang_atlas(obj,lang_atlas_dir)
             fprintf('doing something\n')
             info_parc=niftiinfo([lang_atlas_dir,'/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii']);
             V_parc=niftiread([lang_atlas_dir,'/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii']);
@@ -249,67 +251,7 @@ classdef ecog_data < dynamicprops
             corner_x=[90:-2:-90];
             corner_y=[-126:2:90];
             corner_z=[-72:2:108];
-%             v.FrameRate=15;
-%             v.Quality=100;
-%             open(v);
-%             for k = 1:size(V_parc,2)
-%                 writeVideo(v,double(squeeze(V_parc(:,k,:)))/12);
-%             end
-%             close(v);
-%             
-%             
-%             v = VideoWriter('/Users/eghbalhosseini/Desktop/parc_z.avi');
-%             v.FrameRate=15;
-%             v.Quality=100;
-%             open(v);
-%             for k = 1:size(V_parc,3)
-%                 writeVideo(v,double(squeeze(V_parc(:,:,k)))/12);
-%             end
-%             close(v);
-%             verts=obj.icmb152_pial.Vertices_lh
-%             nvertices=size(verts,1);
-%             color_data = repmat([255,229,204]./255,nvertices,1);
-%             f=figure
-%             f.Position=[880 738 1321 1319];
-%             ax=subplot(1,1,1)
-%             patch_handle = patch('vertices', obj.icmb152_pial.Vertices_lh, 'Faces', obj.icmb152_pial.Faces_lh, 'FaceVertexCData', color_data,'FaceLighting','gouraud','SpecularStrength',0,'DiffuseStrength',0.7);
-%             shading interp;
-%             patch_handle.FaceAlpha=1;
-% 
-%             light_handle = camlight('left','infinite');
-%             set(light_handle, 'Position', [-1, 1, 0.33]);
-%             ax.XLabel.String='X';
-%             ax.YLabel.String='Y';
-%             ax.ZLabel.String='Y';
 
-           
-%             hold on 
-%             [X,Z] = meshgrid(corner_x,corner_z);
-%             a=squeeze(V_prb(:,corner_y==0,:));
-%             ima=warp(X,min(corner_y)*ones(size(X)),Z,transpose(double(1-a)))
-%             ax.View=[0,0];
-%             ima.CDataMode='auto'
-%             for val=corner_y
-%                 a=squeeze(V_prb(:,corner_y==val,:));
-%                 Y=val*ones(size(X));
-%                 set(ima, 'CData', transpose(1-double(a)),'YData',Y);
-%                 ax.CameraPosition=[0,val+1,0];
-%                 ax.CameraTarget=[0,min(corner_y)-10,0];
-%                 pause(0.1)
-%                 shg
-%             end 
-            
-            
-
-%             v.Quality=100;
-%             open(v);
-%             for k = 1:size(corner_y,2)
-
-%                 writeVideo(v,double(squeeze(V_parc(:,k,:)))/12);
-%             end
-%             close(v);
-            
-            
             x_y_z_prac=[];
             x_y_z_prb=[];
             x_y_z_idx=[];
@@ -327,30 +269,6 @@ classdef ecog_data < dynamicprops
                 x_y_z_lab{id_}=label;
                 x_y_z_cord(id_,:)=[corner_x(i_x),corner_y(i_y),corner_z(i_z)];
             end
-%             v = VideoWriter('/Users/eghbalhosseini/Desktop/parc_x.avi');
-%             v.FrameRate=15;
-%             open(v);
-%             
-%             figure;
-%             ax=axes('position',[.1,.3,.4,.4]);
-%             for k = 1:size(V_parc,1)
-%                 imagesc(1:length(corner_y),1:length(corner_z),double(squeeze(V_parc(k,:,:)))/12,[0,1])
-%                 colormap('gray')
-%                 overlap=x_y_z_idx(:,1)==k;
-%                 y_z=x_y_z_idx(overlap,[2,3]);
-%                 labels=x_y_z_lab(find(overlap));
-%                 hold on 
-%                 arrayfun(@(x) plot(y_z(x,1),y_z(x,2), 'r+', 'MarkerSize', 2, 'LineWidth', 2),1:size(y_z,1))
-%                 arrayfun(@(x) text(y_z(x,1),y_z(x,2),labels{x},'color','r' ),1:length(labels))
-%                 hold off
-%                 set(gca,'YDir','normal')
-%                 F = getframe(ax);
-%                 
-%                 writeVideo(v,F);
-%             end
-%             close(v);
-%             
-            % 
             if not(isprop(obj,'elec_parc_idx'))
                 P = addprop(obj,'elec_parc_idx');
             end
@@ -366,21 +284,21 @@ classdef ecog_data < dynamicprops
             if not(isprop(obj,'elec_lana_prb'))
                 P = addprop(obj,'elec_lana_prb');
             end
-            % 
+            %
             obj.elec_parc_label=x_y_z_lab;
             obj.elec_parc_idx=x_y_z_idx;
             obj.elec_parc_coords=x_y_z_cord;
             obj.elec_lana_prb=x_y_z_prb;
             obj.elec_parc=x_y_z_prac;
-        end 
-%% methods for averaging signal
+        end
+        %% methods for averaging signal
         function cond_data=get_cond_resp(obj,condition)
             cond_id=find(cellfun(@(x) x==condition,obj.trial_type));
             cond_data=obj.trial_data(cond_id);
-            
-        end 
+
+        end
         function input_d_ave=get_average(obj,input_d,varargin)
-            % work on a cell of tables 
+            % work on a cell of tables
             p=inputParser();
             addParameter(p, 'dim', 2);
             parse(p, varargin{:});
@@ -394,10 +312,10 @@ classdef ecog_data < dynamicprops
                 values_ave=varfun( @(x) cellfun(@(y) squeeze(nanmean(y,ops.dim)), x,'uni',false), values,'OutputFormat','table');
                 values_ave.Properties.VariableNames=values.Properties.VariableNames;
                 input_d_ave{k}=[keys,strings,values_ave];
-            end 
-        end 
+            end
+        end
         function output_d=get_value(obj,input_d,varargin)
-            % work on tables and cells 
+            % work on tables and cells
             p=inputParser();
             addParameter(p, 'key', 'word');
             addParameter(p, 'type', 'match'); % match or contain
@@ -407,13 +325,13 @@ classdef ecog_data < dynamicprops
                 func=@(x,y) ismember(x,y);
             else
                 func=@(x,y) contains(x,y);
-            end 
+            end
             if istable(input_d)
                 output_d=input_d(func(input_d.key,ops.key),:);
             elseif iscell(input_d)
                 output_d=cellfun(@(x) x(func(x.key,ops.key),:),input_d,'uni',false);
-            end 
-        end 
+            end
+        end
 
 
     end
