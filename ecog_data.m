@@ -122,12 +122,12 @@ classdef ecog_data < dynamicprops
             pbar=ProgressBar(size(obj.trial_timing_dec,1));
             for k=1:size(obj.trial_timing_dec,1)
                 trial_time_tbl=obj.trial_timing_dec{k,1};
-                trial_elec_data_dec=arrayfun(@(x) obj.elec_data_dec(:,trial_time_tbl(x,:).start:trial_time_tbl(x,:).end),1:size(trial_time_tbl,1),'uni',false)';
-                trial_elec_data_zs_dec=arrayfun(@(x) obj.elec_data_zs_dec(:,trial_time_tbl(x,:).start:trial_time_tbl(x,:).end),1:size(trial_time_tbl,1),'uni',false)';
-                trial_bip_elec_data_dec=arrayfun(@(x) obj.bip_elec_data_dec(:,trial_time_tbl(x,:).start:trial_time_tbl(x,:).end),1:size(trial_time_tbl,1),'uni',false)';
-                trial_bip_elec_data_zs_dec=arrayfun(@(x) obj.bip_elec_data_zs_dec(:,trial_time_tbl(x,:).start:trial_time_tbl(x,:).end),1:size(trial_time_tbl,1),'uni',false)';
-                envelope_dec=arrayfun(@(x) obj.envelopes_dec(:,trial_time_tbl(x,:).start:trial_time_tbl(x,:).end),1:size(trial_time_tbl,1),'uni',false)';
-                bip_envelope_dec=arrayfun(@(x) obj.bip_envelopes_dec(:,trial_time_tbl(x,:).start:trial_time_tbl(x,:).end),1:size(trial_time_tbl,1),'uni',false)';
+                trial_elec_data_dec=arrayfun(@(x) obj.elec_data_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
+                trial_elec_data_zs_dec=arrayfun(@(x) obj.elec_data_zs_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
+                trial_bip_elec_data_dec=arrayfun(@(x) obj.bip_elec_data_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
+                trial_bip_elec_data_zs_dec=arrayfun(@(x) obj.bip_elec_data_zs_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
+                envelope_dec=arrayfun(@(x) obj.envelopes_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
+                bip_envelope_dec=arrayfun(@(x) obj.bip_envelopes_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
                 obj.trial_data{k,1}=table(trial_time_tbl.key,trial_time_tbl.string,trial_elec_data_dec,trial_elec_data_zs_dec,trial_bip_elec_data_dec,trial_bip_elec_data_zs_dec,envelope_dec,bip_envelope_dec,'VariableNames',trial_keys);
                 %obj.trial_data{k,2}=obj.trial_timing_dec{k,2};
                 pbar.step([],[],[]);
@@ -293,7 +293,7 @@ classdef ecog_data < dynamicprops
         end
         %% methods for averaging signal
         function cond_data=get_cond_resp(obj,condition)
-            cond_id=find(cellfun(@(x) x==condition,obj.trial_type));
+            cond_id=find(ismember(obj.trial_type,condition));
             cond_data=obj.trial_data(cond_id);
 
         end
