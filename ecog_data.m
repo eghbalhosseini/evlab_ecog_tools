@@ -59,6 +59,9 @@ classdef ecog_data < dynamicprops
         % mni 
         elec_ch_pos_mni
         bip_ch_pos_mni
+        % 
+        elec_ch_pos_mni_cat12
+        bip_ch_pos_mni_cat12
         % hcp 
         elec_ch_HCP_label
         elec_ch_HCP_weight
@@ -185,6 +188,7 @@ classdef ecog_data < dynamicprops
             obj.elec_ch_pos_anat=ch_table;
         end
         function obj=connect_mni_brain(obj)
+
             fprintf('doing electrode mapping onto mni\n');
             clinical_info=obj.filt_ops.elec_clinic_info;
             missing_elec=setdiff(lower(obj.elec_ch_label),lower(clinical_info.label));
@@ -238,7 +242,41 @@ classdef ecog_data < dynamicprops
                 P = addprop(obj,'icmb152_pial');
             end
             obj.icmb152_pial=icbm_file.icmb152_pial;
+        end 
+        function obj=connect_mni_brain_va_cat12(obj)
+            fprintf('doing electrode mapping onto mni via cat 12\n');
+            clinical_info=obj.filt_ops.elec_clinic_info_MNI_cat12;
+            missing_elec=setdiff(lower(obj.elec_ch_label),lower(clinical_info.label));
+            assert(isempty(missing_elec),sprintf('%s, missing: %s',obj.subject_id,strjoin(missing_elec,', ')));
+            assert(all(ismember(lower(obj.elec_ch_label),lower(clinical_info.label))));
+            chn_pos_in_mni_cat12={};
+            for k_ch=1:length(obj.elec_ch_label)
+                ch_id=obj.elec_ch_label{k_ch};
+                chan_loc=find(ismember(lower(clinical_info.label),lower(ch_id)));
+                assert(length(chan_loc)==1);
+                ch_info=clinical_info(chan_loc,:);
+                chn_pos_in_mni_cat12{k_ch,1}=[ch_info.x,ch_info.y,ch_info.z];
+            
             end 
+            obj.elec_ch_pos_mni_cat12=chn_pos_in_mni_cat12;
+            % bipolar - this is estimate 
+            bip_chn_pos_in_mni_cat12={};
+            for k_ch=1:length(obj.bip_ch_label_valid)
+                bip_1=obj.bip_ch_label_valid{k_ch,1};
+                bip_2=obj.bip_ch_label_valid{k_ch,2};
+                bip_1_chan_loc=find(ismember(lower(clinical_info.label),lower(bip_1)));
+                assert(length(bip_1_chan_loc)==1);
+                bip_2_chan_loc=find(ismember(lower(clinical_info.label),lower(bip_2)));
+                assert(length(bip_2_chan_loc)==1);
+                bip_1_ch_info=clinical_info(bip_1_chan_loc,:);
+                bip_2_ch_info=clinical_info(bip_2_chan_loc,:);
+
+                bip_chn_pos_in_mni_cat12{k_ch,1}=mean([bip_1_ch_info.x,bip_1_ch_info.y,bip_1_ch_info.z;
+                    bip_2_ch_info.x,bip_2_ch_info.y,bip_2_ch_info.z],1);
+                
+            end 
+            obj.bip_ch_pos_mni_cat12=bip_chn_pos_in_mni_cat12;
+        end 
         function obj=align_with_lang_atlas(obj,lang_atlas_dir)
             fprintf('doing something\n')
             info_parc=niftiinfo([lang_atlas_dir,'/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii']);

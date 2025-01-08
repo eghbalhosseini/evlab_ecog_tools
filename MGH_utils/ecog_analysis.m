@@ -580,6 +580,7 @@ classdef ecog_analysis
             addParameter(p, 'average_brain', false);
             addParameter(p,'elec_mode','bip_elec'); % elec or bip_elec
             addParameter(p,'zscore',false);
+            addParameter(p,'suffix','')
             
             parse(p, varargin{:});
             ops = p.Results;
@@ -646,7 +647,8 @@ classdef ecog_analysis
                     loc_=left_tbl{kk,:};
                     R=loc_(1); A=loc_(2); S=loc_(3);
                     h=plot3(R,A,S);
-                    h.Marker='o';h.MarkerFaceColor=[.0,.0,.0];h.MarkerEdgeColor=[.0,.0,.0];h.MarkerSize=5;
+                    h.LineStyle='none';
+                    h.Marker='o';h.MarkerFaceColor=[.2,.2,.2];h.MarkerEdgeColor=[.2,.2,.2];h.MarkerSize=4;
                 end 
             end 
             % plot significant electrodes on the left side 
@@ -657,7 +659,7 @@ classdef ecog_analysis
                     loc_=left_tbl{kk};
                     R=loc_(1); A=loc_(2); S=loc_(3);
                     h=plot3(R,A,S);
-                    h.Marker='o';h.MarkerFaceColor=[1,0,0];h.MarkerEdgeColor=[1,0,0];h.MarkerSize=8;
+                    h.Marker='o';h.MarkerFaceColor=[1,0,0];h.MarkerEdgeColor=[1,0,0];h.MarkerSize=4;
                     %plot3(R*[1,1,1],A*[1,1,1],S+[-5,0,5],'LineWidth',2,'color',[1,0,0]);
                     %plot3(R+[-5,0,5],A*[1,1,1],S+[1,1,1],'LineWidth',2,'color',[0,1,0]);
                     %plot3(R*[1,1,1],A+[-5,0,5],S+[1,1,1],'LineWidth',2,'color',[0,0,1]);
@@ -692,7 +694,8 @@ classdef ecog_analysis
                     loc_=right_tbl{kk,:};
                     R=loc_(1); A=loc_(2); S=loc_(3);
                     h=plot3(R,A,S);
-                    h.Marker='o';h.MarkerFaceColor=[0,0,.0];h.MarkerEdgeColor=[0,0,0];h.MarkerSize=5;
+                    h.LineStyle='none';
+                    h.Marker='o';h.MarkerFaceColor=[.2,.2,.2];h.MarkerEdgeColor=[.2,.2,.2];h.MarkerSize=4;
                 end 
             end 
             % overlay significant electrodes
@@ -703,7 +706,7 @@ classdef ecog_analysis
                     loc_=right_tbl{kk};
                     R=loc_(1); A=loc_(2); S=loc_(3);
                     h=plot3(R,A,S);
-                    h.Marker='o';h.MarkerFaceColor=[0,0,0];h.MarkerEdgeColor=[0,0,0];h.MarkerSize=8;
+                    h.Marker='o';h.MarkerFaceColor=[1,0,0];h.MarkerEdgeColor=[1,0,0];h.MarkerSize=4;
                     %plot3(R*[1,1,1],A*[1,1,1],S+[-5,0,5],'LineWidth',2,'color',[1,0,0]);
                     %plot3(R+[-5,0,5],A*[1,1,1],S+[1,1,1],'LineWidth',2,'color',[0,1,0]);
                     %plot3(R*[1,1,1],A+[-5,0,5],S+[1,1,1],'LineWidth',2,'color',[0,0,1]);
@@ -715,8 +718,8 @@ classdef ecog_analysis
                mkdir(strcat(analysis_path));
             end
             set(gcf,'PaperOrientation','landscape');
-            print(f, '-bestfit','-dpdf','-opengl', strcat(analysis_path,'/',obj.ecog_data.subject_id,'_anatomy_s_v_n_',obj.ecog_data.modality,'_',ops.elec_mode,'_zscore_',num2str(ops.zscore),'_v2.pdf'));
-            close(f)
+            print(f, '-bestfit','-dpdf','-opengl', strcat(analysis_path,'/',obj.ecog_data.subject_id,'_anatomy_s_v_n_',obj.ecog_data.modality,'_',ops.elec_mode,'_zscore_',num2str(ops.zscore),ops.suffix,'.pdf'));
+            %close(f)
         end
         
     end

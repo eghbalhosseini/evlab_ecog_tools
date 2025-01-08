@@ -507,7 +507,6 @@ classdef ecog_sn_data<ecog_data
 
         end
 
-
         function obj=make_extended_stim_resp_mat(obj,varargin)
             p=inputParser();
             addParameter(p, 'words', 'all');

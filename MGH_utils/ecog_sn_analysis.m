@@ -14,7 +14,6 @@ classdef ecog_sn_analysis
             %   Detailed explanation goes here
             obj.ecog_data = ecog_data;
         end
-        
         function  overlay_lang_resp_elec_on_brain(obj,varargin)
             %METHOD1 Summary of this method goes here
             %   Detailed explanation goes here
