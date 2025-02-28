@@ -1,5 +1,5 @@
 
-classdef ecog_sn_data<ecog_data
+classdef ecog_sn_data_tiny<ecog_data_tiny
     %ECOG_DATA Summary of this class goes here
     %   Detailed explanation goes here
     properties
@@ -7,12 +7,8 @@ classdef ecog_sn_data<ecog_data
 
     methods
         %% method for constructing the object
-        function sn_obj = ecog_sn_data(prep_data,...
-                trial_timing_dec,...
-                events_table)
-            sn_obj@ecog_data(prep_data,...
-                trial_timing_dec,...
-                events_table)
+        function sn_obj = ecog_sn_data_tiny(prep_data)
+            sn_obj@ecog_data_tiny(prep_data)
         end
 
         %% method for combining trials
@@ -612,7 +608,7 @@ classdef ecog_sn_data<ecog_data
 
             if contains(elec_flag,'bip')
                 elec_labels=obj.bip_ch_label_valid;
-                elec_labels=arrayfun(@(x) [elec_labels{x,1},'-',elec_labels{x,2}],1:size(elec_labels,1),'uni',false);
+                
             else
                 elec_labels=obj.elec_ch_label;
             end
@@ -894,7 +890,7 @@ classdef ecog_sn_data<ecog_data
                 set(gcf,'PaperOrientation','landscape');
                 fname=sprintf('%s_%s_tiny_timecourse.pdf',obj.subject_id,elec_labels{elec_id});
                 print(f, '-fillpage','-dpdf','-opengl', fullfile(save_dir,fname));
-                fname=sprintf('%s_%s_tiny_timecourse.png',obj.subject_id,elec_labels{elec_id});
+                fname=sprintf('%s_%s_timecourse.png',obj.subject_id,elec_labels{elec_id});
                 %print(f,'-dpng','-painters', fullfile(save_dir,fname));
 
                 close(f);
@@ -927,7 +923,6 @@ classdef ecog_sn_data<ecog_data
 
             if contains(elec_flag,'bip')
                 elec_labels=obj.bip_ch_label_valid;
-                elec_labels=arrayfun(@(x) [elec_labels{x,1},'-',elec_labels{x,2}],1:size(elec_labels,1),'uni',false);
             else
                 elec_labels=obj.elec_ch_label;
             end

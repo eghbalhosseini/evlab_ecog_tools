@@ -1,16 +1,12 @@
 
-classdef ecog_data < dynamicprops
+classdef ecog_data_tiny < dynamicprops
     %ECOG_DATA Summary of this class goes here
     %   Detailed explanation goes here
     
     properties
         %% data
-        elec_data_dec
         elec_data_zs_dec
-        bip_elec_data_dec
         bip_elec_data_zs_dec
-        envelopes_dec
-        bip_envelopes_dec
         %% timing 
         trial_timing_dec
         trial_timing
@@ -79,59 +75,50 @@ classdef ecog_data < dynamicprops
     
     methods
 %% method for constructing the object 
-        function obj = ecog_data(prep_data,...
-        trial_timing_dec,events_table) % timing
+        function obj = ecog_data_tiny(prep_data) % timing
             %% data 
-            obj.elec_data_dec = prep_data.signal_hilbert_decimated;
-            obj.elec_data_zs_dec = prep_data.signal_hilbert_zs_decimated;
-            obj.bip_elec_data_dec = prep_data.signal_bioplar_hilbert_decimated;
-            obj.bip_elec_data_zs_dec = prep_data.signal_bipolar_hilbert_zs_decimated;
-            obj.envelopes_dec=prep_data.evelopes;
-            obj.bip_envelopes_dec=prep_data.evelopes_bipolar;
+            obj.elec_data_zs_dec = prep_data.elec_data;
+            obj.bip_elec_data_zs_dec = prep_data.bip_elec_data;
             %% timing 
-            obj.trial_timing_dec=trial_timing_dec;
+            obj.trial_timing_dec=prep_data.trial_timing;
             %% channel labels 
-            obj.elec_ch_label=prep_data.ops.ecog_channels_labels;
-            obj.elec_ch=prep_data.ops.elecids;
-            obj.elec_ch_with_IED=prep_data.ops.ecog_channels_IED_deselected;
-            obj.elec_ch_with_noise=prep_data.ops.ecog_channels_noise_5std_deselected;
-            obj.elec_ch_user_deselect=prep_data.ops.ecog_channels_user_deselect;
-            obj.elec_ch_clean=prep_data.ops.ecog_channels_selected;
-            obj.elec_ch_valid=prep_data.ops.ecog_valid_chan_ids;
+            obj.elec_ch_label=prep_data.elec_ch_label;
+            obj.elec_ch=prep_data.elec_ch;
+            obj.elec_ch_with_IED=prep_data.elec_ch_with_IED;
+            obj.elec_ch_with_noise=prep_data.elec_ch_with_noise;
+            obj.elec_ch_user_deselect=prep_data.elec_ch_user_deselect;
+            obj.elec_ch_clean=prep_data.elec_ch_clean;
+            obj.elec_ch_valid=prep_data.elec_ch_valid;
             % bipolar channel labels 
-            obj.bip_ch_valid_grp=prep_data.ops.bip_ch_id_valid_grp;
-            obj.bip_ch_label_valid_grp=prep_data.ops.bip_ch_label_valid_grp;
-            obj.bip_ch_valid=prep_data.ops.bip_ch_id_valid;
-            obj.bip_ch_label_valid=prep_data.ops.bip_ch_label_valid;
+            obj.bip_ch_valid_grp=prep_data.bip_ch_grp;
+            obj.bip_ch_label_valid_grp=prep_data.bip_ch_label_grp;
+            obj.bip_ch_valid=prep_data.bip_ch;
+            obj.bip_ch_label_valid=prep_data.bip_ch_label;
             %% info 
-            obj.events_table=events_table;
-            obj.subject_id=prep_data.ops.subject_id;
-            obj.file_name=prep_data.ops.file_name;
-            obj.file_path=prep_data.ops.file_path;
-            obj.trial_type=trial_timing_dec(:,2); 
-            obj.session_name=prep_data.ops.session_name;
+            obj.events_table=prep_data.events_table;
+            obj.subject_id=prep_data.subject;
+            obj.file_name=prep_data.for_preproc.file_name;
+            obj.file_path=prep_data.for_preproc.file_path;
+            obj.trial_type=prep_data.condition; 
+            obj.session_name=prep_data.experiment;
             % frequency info
-            obj.sample_freq=prep_data.ops.sr;
-            obj.decimation_freq=prep_data.ops.fsDownsample;
-            obj.filt_ops=prep_data.ops;
+            obj.sample_freq=prep_data.for_preproc.sample_freq_raw;
+            obj.decimation_freq=prep_data.sample_freq;
+            obj.filt_ops=prep_data.for_preproc;
             
         end
         %% methods for denoising the data
         function obj=make_trials(obj)
             %METHOD1 Summary of this method goes here
-            trial_keys={'key','string','elec_data_dec','elec_data_zs_dec','bip_elec_data_dec','bip_elec_data_zs_dec','envelope_dec','bip_envelope_dec'};
+            trial_keys={'key','string','elec_data_zs_dec','bip_elec_data_zs_dec'};
             %   Detailed explanation goes here
             fprintf(1, '\n splitting the data into trials \n');
             pbar=ProgressBar(size(obj.trial_timing_dec,1));
             for k=1:size(obj.trial_timing_dec,1)
                 trial_time_tbl=obj.trial_timing_dec{k,1};
-                trial_elec_data_dec=arrayfun(@(x) obj.elec_data_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
                 trial_elec_data_zs_dec=arrayfun(@(x) obj.elec_data_zs_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
-                trial_bip_elec_data_dec=arrayfun(@(x) obj.bip_elec_data_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
                 trial_bip_elec_data_zs_dec=arrayfun(@(x) obj.bip_elec_data_zs_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
-                envelope_dec=arrayfun(@(x) obj.envelopes_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
-                bip_envelope_dec=arrayfun(@(x) obj.bip_envelopes_dec(:,floor(trial_time_tbl(x,:).start):ceil(trial_time_tbl(x,:).end)),1:size(trial_time_tbl,1),'uni',false)';
-                obj.trial_data{k,1}=table(trial_time_tbl.key,trial_time_tbl.string,trial_elec_data_dec,trial_elec_data_zs_dec,trial_bip_elec_data_dec,trial_bip_elec_data_zs_dec,envelope_dec,bip_envelope_dec,'VariableNames',trial_keys);
+                obj.trial_data{k,1}=table(trial_time_tbl.key,trial_time_tbl.string,trial_elec_data_zs_dec,trial_bip_elec_data_zs_dec,'VariableNames',trial_keys);
                 %obj.trial_data{k,2}=obj.trial_timing_dec{k,2};
                 pbar.step([],[],[]);
             end
@@ -278,13 +265,14 @@ classdef ecog_data < dynamicprops
             obj.bip_ch_pos_mni_cat12=bip_chn_pos_in_mni_cat12;
         end 
         function obj=align_with_lang_atlas(obj,lang_atlas_dir)
-            %fprintf('doing something\n')
+            fprintf('doing something\n')
             info_parc=niftiinfo([lang_atlas_dir,'/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii']);
             V_parc=niftiread([lang_atlas_dir,'/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii']);
             info_prb=niftiinfo([lang_atlas_dir,'/LanA/SPM/LanA_n806.nii']);
             V_prb=niftiread([lang_atlas_dir,'/LanA/SPM/LanA_n806.nii']);
             v_mni=niftiread([lang_atlas_dir,'/mni_icbm152_nlin_asym_09b/mni_icbm152_t1_tal_nlin_asym_09b_hires.nii']);
             info_mni=niftiinfo([lang_atlas_dir,'/mni_icbm152_nlin_asym_09b/mni_icbm152_t1_tal_nlin_asym_09b_hires.nii']);
+            v = VideoWriter('/Users/eghbalhosseini/Desktop/parc_y.avi');
             corner_x=[90:-2:-90];
             corner_y=[-126:2:90];
             corner_z=[-72:2:108];
@@ -294,8 +282,6 @@ classdef ecog_data < dynamicprops
             x_y_z_idx=[];
             x_y_z_lab={};
             x_y_z_cord=[];
-
-
             for id_=1:size(obj.elec_ch_pos_mni,1)
                 xyz=obj.elec_ch_pos_mni{id_};
                 label=obj.elec_ch_label{id_};
