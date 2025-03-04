@@ -34,9 +34,11 @@ pStatTwo = adjustPVals(pStatTwo,nPerm);
 fprintf(1, '\n>> Calculating permutation p-values...\n');
 for iPerm = 1:nPerm
     permRecur = setdiff(1:nPerm, iPerm);
-    pStatPermOne(iPerm,:) = sum(permStat(iPerm,:)>permStat(permRecur,:),1)./(nPerm-1);
+    pStatPermOne(iPerm,:) = sum(permStat(permRecur,:)>permStat(iPerm,:),1)./(nPerm-1);
+    pStatPermOne(iPerm,isnan(permStat(iPerm,:)))=nan;
     pStatPermOne(iPerm,:) = adjustPVals(pStatPermOne(iPerm,:),nPerm-1);
-    pStatPermTwo(iPerm,:) = sum(abs(permStat(iPerm,:))>abs(permStat(permRecur,:)),1)./(nPerm-1);
+    pStatPermTwo(iPerm,:) = sum(abs(permStat(permRecur,:))>abs(permStat(iPerm,:)),1)./(nPerm-1);
+    pStatPermTwo(iPerm,isnan(permStat(iPerm,:)))=nan;
     pStatPermTwo(iPerm,:) = adjustPVals(pStatPermTwo(iPerm,:),nPerm-1);
     fprintf(1,'.');
 end
