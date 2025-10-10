@@ -77,7 +77,7 @@ classdef ecog_sn_data<ecog_data
             addParameter(p, 'n_rep', 1000);
             addParameter(p,'corr_type','Spearman');
             addParameter(p, 'threshold', 0.01);
-            addParameter(p, 'side', 'both');
+            addParameter(p, 'side', 'right');
             addParameter(p, 'do_plot',false);
             parse(p, varargin{:});
             ops = p.Results;
@@ -227,9 +227,9 @@ classdef ecog_sn_data<ecog_data
                     if ~mod(i,num_rows) | i==size(S_dat,1)
                         %legend('show','Location','northeastoutside')
                         pp=pp+1;
-                        if ~exist(strcat(analysis_path,obj.subject_id))
-                            mkdir(strcat(analysis_path,obj.subject_id));
-                        end
+                        % if ~exist(strcat(analysis_path,obj.subject_id))
+                        %     mkdir(strcat(analysis_path,obj.subject_id));
+                        % end
                         set(gcf,'PaperPosition',[.25 .25 8 6])
                         set(gcf,'PaperOrientation','landscape');
                         fname=sprintf('%s_s_v_n_words-%d-%d_p_%0.2f_%s_%s_%s_tiny_bipolar_1.pdf',obj.subject_id,...
@@ -239,7 +239,7 @@ classdef ecog_sn_data<ecog_data
                             ops.side,...
                             obj.modality,...
                             num2str(num2str(pp)));
-                        print(f, '-bestfit','-dpdf','-opengl', strcat(analysis_path,obj.subject_id,'/',fname));
+                        %print(f, '-bestfit','-dpdf','-opengl', strcat(analysis_path,obj.subject_id,'/',fname));
                         %close(f)
                         set(0, 'CurrentFigure', f);
                         clf reset;

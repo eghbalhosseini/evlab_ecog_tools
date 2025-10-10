@@ -1,0 +1,209 @@
+% organize_electrode_data_v3.m
+% Organize electrode files (CSV or TSV) for FreeSurfer-compatible visualization
+
+function organize_electrode_data_v3(source_dir, output_dir)
+    % Validate inputs
+    if nargin < 2
+        error('Usage: organize_electrode_data_v3(source_dir, output_dir)');
+    end
+    
+    % Create output directory
+    if ~exist(output_dir, 'dir')
+        mkdir(output_dir);
+    end
+    
+    % 1) Gather localization files (TSV/CSV) and ignore hidden
+    loc_dir = fullfile(source_dir, 'brainstorm_localizations_cat12_fedorenko_nov_2024');
+    all_tsv = dir(fullfile(loc_dir, '*.tsv'));
+    all_csv = dir(fullfile(loc_dir, '*.csv'));
+    loc_files = [all_tsv; all_csv];
+    loc_files = loc_files(~startsWith({loc_files.name}, '.'));
+    
+    % 2) Gather anatomical label CSVs in secondary folder
+    label_pattern = fullfile(source_dir, 'brainstorm_localizations', '*.csv');
+    label_files = dir(label_pattern)
+    
+    fprintf('Found %d localization files and %d label CSV files\n', numel(loc_files), numel(label_files));
+    
+    % 3) Inspect first few for format
+    fprintf('\nInspecting file formats...\n');
+    for i = 1:min(3, numel(loc_files))
+        fname = fullfile(loc_files(i).folder, loc_files(i).name);
+        fprintf('\nFile: %s\n', loc_files(i).name);
+        inspect_table_format(fname);
+    end
+    
+    % 4) Process each localization file
+    processed = {};
+    failed = {};
+    for i = 1:numel(loc_files)
+        fn = loc_files(i).name;
+        fpath = fullfile(loc_files(i).folder, fn);
+        ext = lower(fn(end-2:end));
+        % Extract subject ID
+        sid = extract_subject_id(fn);
+        if isempty(sid)
+            warning('Could not extract subject ID from %s', fn);
+            failed{end+1} = fn;
+            continue;
+        end
+        % Find label CSV
+        lbl = find_csv_file(label_files, sid);
+        lbl_path = '';
+        if ~isempty(lbl)
+            lbl_path = fullfile(lbl.folder, lbl.name);
+        else
+            fprintf('Warning: No anatomical label CSV for %s\n', sid);
+        end
+        % Prepare output folder
+        out_sub = fullfile(output_dir, sid);
+        if ~exist(out_sub, 'dir')
+            mkdir(out_sub);
+        end
+        % Process
+        try
+            process_files(sid, fpath, lbl_path, out_sub, ext);
+            processed{end+1} = sid;
+            fprintf('Processed %s\n', sid);
+        catch ME
+            warning('Failed %s: %s', sid, ME.message);
+            failed{end+1} = sid;
+        end
+    end
+    
+    % 5) Create summary
+    create_summary_file(output_dir, processed);
+    fprintf('\nDone. Success: %d, Failures: %d\n', numel(processed), numel(failed));
+end
+
+%% Helper: inspect table format
+function inspect_table_format(path)
+    try
+        opts = detectImportOptions(path);
+        fprintf('  Columns: %s\n', strjoin(opts.VariableNames, ', '));
+        T = readtable(path, opts);
+        disp(T(1:min(3, height(T)), :));
+    catch ME
+        fprintf('  Error: %s\n', ME.message);
+    end
+end
+
+%% Helper: process_files
+function process_files(subj, loc_path, lbl_path, out_dir, ext)
+    % Read localization table
+    opts = detectImportOptions(loc_path);
+    opts.VariableNamingRule = 'preserve';
+    Tloc = readtable(loc_path, opts);
+    % Standardize coordinates
+    Tcoord = standardize_tsv_table(Tloc, subj);
+    writetable(Tcoord, fullfile(out_dir, 'electrodes_coords.tsv'), 'Delimiter', '\t');
+    
+    % Read labels if available
+    if ~isempty(lbl_path) && isfile(lbl_path)
+        Tlbl = readtable(lbl_path);
+        writetable(Tlbl, fullfile(out_dir, 'electrodes_labels.csv'));
+    else
+        Tlbl = table();
+    end
+    
+    % Combine and save
+    combined = combine_electrode_data(Tcoord, Tlbl);
+    save(fullfile(out_dir, 'electrodes_combined.mat'), 'combined', '-v7.3');
+end
+
+%% Helper: standardize_tsv_table
+function coords_table = standardize_tsv_table(tsv_data, subject_id)
+    cols = tsv_data.Properties.VariableNames;
+    % find x,y,z
+    xcol = find_column_flexible(cols, {'x','coord_x','mni_x'});
+    ycol = find_column_flexible(cols, {'y','coord_y','mni_y'});
+    zcol = find_column_flexible(cols, {'z','coord_z','mni_z'});
+    if isempty(xcol)||isempty(ycol)||isempty(zcol)
+        error('Missing x/y/z columns for %s', subject_id);
+    end
+    coords_table = table();
+    coords_table.x = tsv_data.(xcol);
+    coords_table.y = tsv_data.(ycol);
+    coords_table.z = tsv_data.(zcol);
+    % name
+    namecol = find_column_flexible(cols, {'name','label','channel'});
+    if ~isempty(namecol)
+        coords_table.name = tsv_data.(namecol);
+    else
+        coords_table.name = arrayfun(@(i) sprintf('%s_%d', subject_id, i), 1:height(coords_table), 'UniformOutput', false)';
+    end
+    % optional: group, size, type
+    for fn = {'group','size','type'}
+        c = find_column_flexible(cols, fn);
+        if ~isempty(c)
+            coords_table.(fn{1}) = tsv_data.(c);
+        end
+    end
+end
+
+%% Helper: find column flexibly
+function name = find_column_flexible(cols, candidates)
+    name = '';
+    for c = candidates
+        idx = find(strcmpi(cols, c{1}),1);
+        if isempty(idx)
+            idx = find(contains(lower(cols), lower(c{1})),1);
+        end
+        if ~isempty(idx)
+            name = cols{idx};
+            return;
+        end
+    end
+end
+
+%% Helper: extract subject ID
+function sid = extract_subject_id(fname)
+    tok = regexp(fname, 'sub-([A-Z]+\d+)', 'tokens');
+    if ~isempty(tok)
+        sid = tok{1}{1};
+    else
+        sid = '';
+    end
+end
+
+%% Helper: find CSV file for subject
+function f = find_csv_file(list, sid)
+    f = [];
+    for k = 1:numel(list)
+        if contains(list(k).name, sid)
+            f = list(k);
+            return;
+        end
+    end
+end
+
+%% Helper: combine electrode data
+function combined = combine_electrode_data(Tc, Tl)
+    combined.coords = [Tc.x Tc.y Tc.z];
+    combined.names = Tc.name;
+    if istable(Tl) && height(Tl)==height(Tc)
+        % include MNI coords and labels if present
+        if ismember('mni_linear_x', Tl.Properties.VariableNames)
+            combined.mni_coords = [Tl.mni_linear_x Tl.mni_linear_y Tl.mni_linear_z];
+        end
+        if ismember('label', Tl.Properties.VariableNames)
+            combined.labels = Tl.label;
+        end
+        if ismember('ictal_activity', Tl.Properties.VariableNames)
+            combined.ictal_activity = Tl.ictal_activity;
+        end
+        if ismember('interictal_activity', Tl.Properties.VariableNames)
+            combined.interictal_activity = Tl.interictal_activity;
+        end
+    end
+end
+
+%% Helper: create summary
+function create_summary_file(output_dir, processed)
+    fid = fopen(fullfile(output_dir, 'subjects_summary.txt'), 'w');
+    fprintf(fid, 'Processed subjects (%d):\n', numel(processed));
+    for i = 1:numel(processed)
+        fprintf(fid, '  %d. %s\n', i, processed{i});
+    end
+    fclose(fid);
+end

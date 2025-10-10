@@ -33,7 +33,7 @@ classdef ecog_sn_analysis
             switch ops.elec_mode
                 case 'bip_elec'
                     elec_loc=obj.ecog_data.bip_ch_pos_anat;
-                    elec_label=obj.ecog_data.biop_ch_label_valid;
+                    elec_label=obj.ecog_data.bip_ch_label_valid;
                     elec_label=cellfun(@(x,y) erase([x,'-',y],'_'),elec_label(:,1),elec_label(:,2),'uni',false);
                     elec_flag='bip_elec_data_dec';
                 case 'elec'

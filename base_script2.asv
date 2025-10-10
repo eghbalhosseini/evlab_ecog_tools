@@ -1,0 +1,616 @@
+%% Full s-vs-n Analysis & LanA Overlay for Your Crunched Files
+% Assumes files named like EM1041_obj_visual.mat, EM1050_obj_auditory.mat, etc.
+
+addpath(genpath('MGH_utils'));
+addpath(('/Users/dsuseendar/repos/extra/spm'));
+
+%% 1. Paths & File Listing
+base        = '/Volumes/disk/nese/MGH_ECoG_Langloc/';
+crunchDir   = fullfile(base,'crunched');
+elecDir     = fullfile(base,'brainstom_localizations_cat12_fedorenko_nov_2024');
+labelDir    = fullfile(base,'brainstorm_localizations/');
+atlasDir    = fullfile(pwd,'anatomy_utils/icmbl/');
+lanANii     = fullfile(base,'language_atlas','LanA','SPM','LanA_n806.nii');
+pialLHmat   = fullfile(atlasDir,'lh.pial');
+pialRHmat   = fullfile(atlasDir,'rh.pial');
+
+
+%% 2. List crunched files
+files = dir(fullfile(crunchDir,'*_obj_*.mat'));
+files = files(~startsWith({files.name},'.'));
+
+%% 3. Initialize results table
+results = table([],[],[],[],[],[],'VariableNames', ...
+    {'R','A','S','subject','isSig','pLanA'});
+
+% 4. Loop: load each file, run test_s_vs_n, collect electrodes
+for f = files'
+    D  = load(fullfile(f.folder,f.name));
+    fd = fieldnames(D);
+    od = D.(fd{1});           
+
+    % Load channel anatomical labels CSV (as before)
+    subj = od.subject_id
+    csvFile = fullfile(labelDir,sprintf('sub-%s_channel_anatomical_labels.csv',subj));
+    if(isfile(csvFile))
+        anatTbl = readtable(csvFile);
+        anatTbl.Properties.VariableNames{1} = 'label';
+        od.elec_ch_pos_anat   = anatTbl(:, {'label','mni_linear_x','mni_linear_y','mni_linear_z'});
+        od.elec_ch_HCP_label  = anatTbl.HCPMMP1_label_1;
+        od.elec_ch_HCP_weight = anatTbl.HCPMMP1_weight_1;
+    end
+    % Load channel RAS table from TSV
+    tsvPattern = fullfile(elecDir, sprintf('sub-%s*_electrodes*.tsv',subj));
+    tbls = dir(tsvPattern); tbls = tbls(~startsWith({tbls.name},'.'));
+    if(~isempty(tbls))
+        ch_RAS_tbl = readtable(fullfile(tbls(1).folder, tbls(1).name), 'Delimiter', '\t', 'FileType', 'text');
+        ch_RAS_tbl.Properties.VariableNames(ismember(ch_RAS_tbl.Properties.VariableNames,'x')) = {'R'};
+        ch_RAS_tbl.Properties.VariableNames(ismember(ch_RAS_tbl.Properties.VariableNames,'y')) = {'A'};
+        ch_RAS_tbl.Properties.VariableNames(ismember(ch_RAS_tbl.Properties.VariableNames,'z')) = {'S'};
+    end
+    % Use sn.s_vs_n_sig results directly (assuming already computed)
+    isSig = od.s_vs_n_sig.elec_data_zs_dec{1};
+
+    % Use od.elec_ch_pos_mni if nonempty; otherwise fallback on ch_RAS_tbl
+    RAS_cell = od.elec_ch_pos_mni;
+    if isempty(RAS_cell)
+        % ch_RAS_tbl has numeric R,A,S columns, convert to matrix
+        RAS = [ch_RAS_tbl.R, ch_RAS_tbl.A, ch_RAS_tbl.S];
+    else
+        % convert from cell array of coordinates
+        RAS = cell2mat(RAS_cell);
+        if size(RAS,2) > 3
+            RAS = RAS(:,1:3);
+        end
+    end
+
+    % Append data to results table
+    n = size(RAS,1);
+    try
+    T = table(RAS(:,1), RAS(:,2), RAS(:,3), ...
+              repmat({od.subject_id},n,1), isSig, NaN(n,1), ...
+              'VariableNames', results.Properties.VariableNames);
+    results = [results; T];
+    catch
+        disp('Cannot append table')
+    continue
+    
+    end
+    
+end
+
+
+%% 5. Load LanA atlas & interpolate probability
+V = spm_vol(lanANii);
+[Y,~] = spm_read_vols(V);
+for i = 1:height(results)
+    xyz = [results.R(i),results.A(i),results.S(i),1]';
+    ijk = round(V.mat\xyz);
+    results.pLanA(i) = Y(ijk(1),ijk(2),ijk(3));
+end
+
+%% Load the left and right pial surfaces
+lh = read_pial(pialLHmat);
+rh = read_pial(pialRHmat);
+
+%% 7. Plot hemispheres
+figure('Color','w','Position',[100 100 1600 600]);
+for h = 1:2
+    ax = subplot(1,2,h);
+    hold(ax,'on');
+
+    % select mesh & view
+    if h==1
+        mesh = lh;
+        view(ax,[-90 0]);
+        title(ax,'Left Hemisphere');
+        idx = results.R < 0;
+    else
+        mesh = rh;
+        view(ax,[90 0]);
+        title(ax,'Right Hemisphere');
+        idx = results.R > 0;
+    end
+
+    % draw cortical surface
+    trisurf(...
+        mesh.faces, ...
+        mesh.vertices(:,1),mesh.vertices(:,2),mesh.vertices(:,3), ...
+        'FaceColor',[.8 .8 .8], 'EdgeColor','none','FaceAlpha',.5, ...
+        'Parent',ax ...
+    );
+
+    lighting(ax,'gouraud');
+    camlight(ax,'headlight');
+    axis(ax,'equal','off');
+
+    % plot electrodes colored by LanA p
+    scatter3(...
+        results.R(idx), results.A(idx), results.S(idx), ...
+        40, results.pLanA(idx), 'filled', 'Parent',ax ...
+    );
+    colormap(ax,'hot');
+    caxis(ax,[0 1]);
+
+    % overlay significant electrodes
+    sigI = idx & results.isSig;
+    scatter3(...
+        results.R(sigI), results.A(sigI), results.S(sigI), ...
+        80, 'o', 'MarkerEdgeColor','cyan','LineWidth',1.5, ...
+        'Parent',ax ...
+    );
+end
+
+% add shared colorbar
+cb = colorbar('Position',[0.92 0.3 0.02 0.4]);
+cb.Label.String = 'LanA probability';
+
+
+%% 8. Quantify LanA distributions
+lana_probs = results.pLanA;
+isLang = logical(results.isSig);
+
+
+%% 1. Overlapping Histogram
+edges = 0:0.01:0.9;
+figure('Position',[100 100 1200 500]);
+subplot(1,2,1);
+
+h1 = histogram(lana_probs(~isLang), edges, 'Normalization','probability', 'FaceColor', [0.3 0.5 1], 'FaceAlpha', 0.7); hold on;
+h2 = histogram(lana_probs(isLang), edges, 'Normalization','probability', 'FaceColor', [1 0.3 0.3], 'FaceAlpha', 0.7);
+
+meanLang = mean(lana_probs(isLang));
+meanNonLang = mean(lana_probs(~isLang));
+ylims = ylim;
+plot([meanLang meanLang], ylims, 'r--', 'LineWidth', 2);
+plot([meanNonLang meanNonLang], ylims, 'b--', 'LineWidth', 2);
+
+legend({'non-language', 'language', ...
+    sprintf('lang, mean P(x): %.2f',meanLang), ...
+    sprintf('non-lang, mean P(x): %.2f',meanNonLang)});
+xlabel('LaNA probability');
+ylabel('frequency');
+title('distribution of LaNA probabilites for language and non-language electrodes');
+
+%% 2. Proportion Plot by Bin
+
+edges = 0:0.05:0.8;
+subplot(1,2,2);
+[countLang,~]    = histcounts(lana_probs(isLang), edges);
+[countNonLang,~] = histcounts(lana_probs(~isLang), edges);
+countsAll = countLang + countNonLang;
+
+proportionLang = countLang ./ countsAll;
+proportionNonLang = countNonLang ./ countsAll;
+
+barWidth = 1;
+
+b = bar(edges(1:end-1)+diff(edges)/2, [proportionLang', proportionNonLang'], ...
+    'stacked','BarWidth',barWidth);
+
+b(1).FaceColor = [1 0.3 0.3];
+b(2).FaceColor = [0.3 0.5 1];
+
+% Annotate counts
+hold on
+for i = 1:length(countLang)
+    if countsAll(i) > 0
+        text(edges(i)+0.02, proportionLang(i)/2, num2str(countLang(i)), ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment','middle','Color',[0 0 0],'FontSize',11);
+        text(edges(i)+0.02, proportionLang(i)+proportionNonLang(i)/2, num2str(countNonLang(i)), ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment','middle','Color',[0 0 0],'FontSize',11);
+    end
+end
+
+xlabel('LaNA proportion');
+ylabel('frequency');
+legend({'non-lang','lang'});
+title('proportion of language and non-language electrodes');
+ylim([0 1]);
+
+% Tighten layout
+set(gcf,'Color','w');
+
+
+%%
+
+% lana_probs: Nx1 LanA probabilities
+% isLang:    Nx1 logical (1=language, 0=non‐language)
+
+% Assuming lana_probs (Nx1) and isLang (Nx1 logical) are defined
+
+% lana_probs: Nx1 LanA probabilities
+% isLang:    Nx1 logical (1=language, 0=non‐language)
+
+% Fit true model
+tbl = table(lana_probs, isLang, 'VariableNames',{'pLanA','isLang'});
+mdl_true  = fitglm(tbl,'isLang~pLanA','Distribution','binomial');
+coef_true = mdl_true.Coefficients.Estimate('pLanA');
+
+% Prediction grid
+xx      = linspace(min(lana_probs), max(lana_probs), 100)';
+predTbl = table(xx,'VariableNames',{'pLanA'});
+
+% True fit and CI
+[yhat_true, yCI_true] = predict(mdl_true, predTbl, 'Alpha', 0.05);
+
+% Permutation test: shuffle labels, refit, record predicted curves
+nPerm = 500;
+yhat_perm = nan(nPerm, numel(xx));
+for i = 1:nPerm
+    y_shuf = isLang(randperm(numel(isLang)));
+    mdl = fitglm(table(lana_probs,y_shuf,'VariableNames',{'pLanA','isLang'}),...
+                 'isLang~pLanA','Distribution','binomial');
+    yhat_perm(i,:) = predict(mdl, predTbl);
+end
+
+% Compute shuffle CI (2.5 and 97.5 percentiles) at each xx
+yCI_perm = prctile(yhat_perm, [2.5,97.5]);
+
+% Plot data, true fit with CI, and shuffle CI ribbon
+figure('Color','w','Position',[100 100 600 400]);
+scatter(lana_probs, double(isLang), 10, 'k', 'filled'); hold on;
+
+% Shuffle CI
+fill([xx; flip(xx)], [yCI_perm(1,:)'; flip(yCI_perm(2,:)')], ...
+     [0.8 0.8 0.8], 'EdgeColor','none', 'FaceAlpha', 0.5);
+
+% True fit
+plot(xx, mean(yhat_perm,1), 'r-', 'LineWidth', 2);
+
+
+% True CI
+fill([xx; flip(xx)], [yCI_true(:,1); flip(yCI_true(:,2))], ...
+     [1 0.7 0.7], 'EdgeColor','none', 'FaceAlpha', 0.3);
+
+% True fit
+plot(xx, yhat_true, 'r-', 'LineWidth', 2);
+
+xlabel('LanA probability');
+ylabel('P(language-responsive)');
+title('True vs. Permutation Fits with Confidence Intervals');
+legend('Data','Shuffle 95% CI','True 95% CI','True fit','Location','NorthWest');
+ylim([-0.05 1.05]);
+%% 
+
+% Assume lana_probs (Nx1) and isLang (Nx1 logical) exist
+
+nPerm = 1000;                  % number of permutations
+coef_perm = nan(nPerm,1);      % to store permuted slope
+auc_perm  = nan(nPerm,1);      % to store permuted AUC
+
+% True model
+tbl = table(lana_probs, isLang, 'VariableNames',{'pLanA','isLang'});
+mdl_true = fitglm(tbl,'isLang~pLanA','Distribution','binomial');
+coef_true = mdl_true.Coefficients.Estimate('pLanA');
+[~,~,~,auc_true] = perfcurve(isLang,lana_probs,true);
+
+% Permutation loop
+for i = 1:nPerm
+    y_shuf = isLang(randperm(length(isLang)));
+    % fit logistic
+    mdl = fitglm(table(lana_probs,y_shuf,'VariableNames',{'pLanA','isLang'}),...
+                 'isLang~pLanA','Distribution','binomial');
+    coef_perm(i) = mdl.Coefficients.Estimate('pLanA');
+    % compute AUC
+    [~,~,~,auc_perm(i)] = perfcurve(y_shuf,lana_probs,true);
+end
+
+%% Plot histogram of permuted slopes with true slope
+figure('Position',[100 100 1200 500]);
+subplot(1,2,1);
+histogram(coef_perm,30,'FaceColor',[.8 .8 .8]); hold on;
+yl = ylim;
+plot([coef_true coef_true], yl, 'r-', 'LineWidth', 2);
+xlabel('Slope coefficient');
+ylabel('Count');
+title('Permutation distribution of slope');
+legend('Permuted','True','Location','NorthEast');
+p_emp_coef = mean(abs(coef_perm) >= abs(coef_true));
+text(coef_true, yl(2)*0.9, sprintf('p_{emp}=%.3f',p_emp_coef), ...
+    'Color','r','HorizontalAlignment','right');
+
+%% Plot histogram of permuted AUC with true AUC
+subplot(1,2,2);
+histogram(auc_perm,30,'FaceColor',[.8 .8 .8]); hold on;
+yl = ylim;
+plot([auc_true auc_true], yl, 'r-', 'LineWidth', 2);
+xlabel('AUC');
+ylabel('Count');
+title('Permutation distribution of AUC');
+legend('Permuted','True','Location','NorthEast');
+p_emp_auc = mean(auc_perm >= auc_true);
+text(auc_true, yl(2)*0.9, sprintf('p_{emp}=%.3f',p_emp_auc), ...
+    'Color','r','HorizontalAlignment','right');
+
+%% 2) ROC analysis
+% lana_probs: Nx1 LanA probabilities
+% isLang:    Nx1 logical (1=language, 0=non‐language)
+
+% 1) True ROC and AUC
+[rocX_true, rocY_true, ~, auc_true] = perfcurve(isLang, lana_probs, true);
+
+% 2) Define common FPR grid
+fpr_grid = linspace(0,1,100);
+
+% 3) Permutation test: shuffle labels, compute ROC, and interpolate TPR
+nPerm = 500;
+tpr_perm = nan(nPerm, numel(fpr_grid));
+auc_perm = nan(nPerm,1);
+
+for i = 1:nPerm
+    y_shuf = isLang(randperm(numel(isLang)));
+    [fpr_i, tpr_i, ~, auc_i] = perfcurve(y_shuf, lana_probs, true);
+    % Remove duplicates in fpr_i
+    [fpr_u, ia] = unique(fpr_i, 'stable');
+    tpr_u = tpr_i(ia);
+    % Interpolate onto common grid
+    tpr_perm(i,:) = interp1(fpr_u, tpr_u, fpr_grid, 'linear', 'extrap');
+    auc_perm(i) = auc_i;
+end
+
+% 4) Compute 95% CI of permuted TPR at each fpr_grid point
+tpr_CI = prctile(tpr_perm, [2.5, 97.5]);
+
+% 5) Interpolate true ROC onto grid (removing duplicates)
+[fpr_u_true, ia_true] = unique(rocX_true, 'stable');
+tpr_u_true = rocY_true(ia_true);
+tpr_true_grid = interp1(fpr_u_true, tpr_u_true, fpr_grid, 'linear');
+
+% 6) Plot
+figure('Color','w','Position',[200 200 600 500]);
+% Shade permuted CI
+fill([fpr_grid, fliplr(fpr_grid)], ...
+     [tpr_CI(1,:), fliplr(tpr_CI(2,:))], ...
+     [0.8 0.8 0.8], 'EdgeColor','none', 'FaceAlpha',0.5);
+hold on;
+% Plot true ROC
+plot(fpr_grid, tpr_true_grid, 'r-', 'LineWidth',2);
+% Plot chance line
+plot([0 1],[0 1],'k--','LineWidth',1);
+
+xlabel('False positive rate');
+ylabel('True positive rate');
+title(sprintf('ROC with Permutation CI (AUC=%.3f)', auc_true));
+legend('Permutation 95% CI','True ROC','Chance','Location','SouthEast');
+
+% 7) Empirical p‐value for AUC
+p_emp = mean(auc_perm >= auc_true);
+fprintf('True AUC=%.3f; permutation p-value=%.3f\n', auc_true, p_emp);
+
+
+
+
+
+
+%%
+
+% Prepare variables
+lana_probs = lana_probs(:);
+isLang     = isLang(:);
+
+% Determine balanced sample size
+idx_lang    = find(isLang);
+idx_nonlang = find(~isLang);
+nSample     = min(numel(idx_lang), numel(idx_nonlang));
+
+% Sample indices for true fit
+s_lang  = randsample(idx_lang,    nSample);
+s_non   = randsample(idx_nonlang, nSample);
+s_idx   = [s_lang; s_non];
+
+% Table for true fit using balanced sample
+tbl_true    = table(lana_probs(s_idx), isLang(s_idx), 'VariableNames',{'pLanA','isLang'});
+mdl_true    = fitglm(tbl_true,'isLang~pLanA','Distribution','binomial');
+coef_true   = mdl_true.Coefficients.Estimate('pLanA');
+
+% Prediction grid
+xx      = linspace(min(lana_probs), max(lana_probs), 100)';
+predTbl = table(xx,'VariableNames',{'pLanA'});
+
+% True fit and CI
+[yhat_true, yCI_true] = predict(mdl_true, predTbl, 'Alpha', 0.05);
+
+% Permutation test with balanced sampling each iteration
+nPerm      = 500;
+yhat_perm  = nan(nPerm, numel(xx));
+
+for i = 1:nPerm
+    % Resample balanced indices
+    s_lang_i = randsample(idx_lang,    nSample);
+    s_non_i  = randsample(idx_nonlang, nSample);
+    s_idx_i  = [s_lang_i; s_non_i];
+    
+    % Shuffle isLang labels within the balanced sample
+    y_shuf   = isLang(s_idx_i);
+    y_shuf   = y_shuf(randperm(numel(y_shuf)));
+    
+    % Fit GLM on sampled & shuffled data
+    tbl_perm = table(lana_probs(s_idx_i), y_shuf, 'VariableNames',{'pLanA','isLang'});
+    mdl_i    = fitglm(tbl_perm,'isLang~pLanA','Distribution','binomial');
+    
+    % Predict on grid
+    yhat_perm(i,:) = predict(mdl_i, predTbl);
+end
+
+% Compute permutation CI
+yCI_perm = prctile(yhat_perm, [2.5, 97.5]);
+
+% Plot
+figure('Color','w','Position',[100 100 600 400]);
+hold on;
+
+% Scatter all data points
+scatter(lana_probs, double(isLang), 10, 'k', 'filled');
+
+% Permutation CI ribbon
+fill([xx; flip(xx)], [yCI_perm(1,:)'; flip(yCI_perm(2,:)')], ...
+     [0.8 0.8 0.8], 'EdgeColor','none', 'FaceAlpha', 0.5);
+
+% True fit ribbon
+fill([xx; flip(xx)], [yCI_true(:,1); flip(yCI_true(:,2))], ...
+     [1 0.7 0.7], 'EdgeColor','none', 'FaceAlpha', 0.3);
+
+% Permutation mean curve
+plot(xx, mean(yhat_perm,1), 'Color',[0.5 0.5 0.5], 'LineWidth',1.5);
+
+% True fit curve
+plot(xx, yhat_true, 'r-', 'LineWidth', 2);
+
+xlabel('LanA probability');
+ylabel('P(language-responsive)');
+title('True vs. Permutation Fits (Balanced Sampling)');
+legend('Data','Shuffle 95% CI','True 95% CI','Shuffle mean','True fit','Location','NorthWest');
+ylim([-0.05 1.05]);
+
+%% 
+
+% Parameters
+nSamplesIter = 500;   % number of balanced sampling iterations
+nPerm        = 1;   % number of permutations per sample
+xx           = linspace(min(lana_probs), max(lana_probs), 100)';
+
+% Preallocate storage
+true_curves  = nan(nSamplesIter, numel(xx));
+shuf_curves  = nan(nSamplesIter, numel(xx));
+
+% Identify indices
+idx_lang    = find(isLang);
+idx_nonlang = find(~isLang);
+nSample     = min(numel(idx_lang), numel(idx_nonlang));
+
+% Loop over sampling iterations
+for s = 1:nSamplesIter
+    % Balanced sample indices
+    s_lang  = randsample(idx_lang,    nSample);
+    s_non   = randsample(idx_nonlang, nSample);
+    s_idx   = [s_lang; s_non];
+    
+    % True GLM fit
+    tbl_t   = table(lana_probs(s_idx), isLang(s_idx), 'VariableNames',{'pLanA','isLang'});
+    mdl_t   = fitglm(tbl_t, 'isLang~pLanA', 'Distribution','binomial');
+    true_curves(s, :) = predict(mdl_t, table(xx,'VariableNames',{'pLanA'}));
+    
+    % Permutation means for this sample
+    perm_preds = nan(nPerm, numel(xx));
+    for i = 1:nPerm
+        y_shuf    = isLang(s_idx);
+        y_shuf    = y_shuf(randperm(numel(y_shuf)));
+        tbl_p     = table(lana_probs(s_idx), y_shuf, 'VariableNames',{'pLanA','isLang'});
+        mdl_p     = fitglm(tbl_p, 'isLang~pLanA', 'Distribution','binomial');
+        perm_preds(i, :) = predict(mdl_p, table(xx,'VariableNames',{'pLanA'}));
+    end
+    shuf_curves(s, :) = mean(perm_preds, 1);
+end
+
+% Aggregate statistics across sampling iterations
+mean_true_curve = mean(true_curves, 1);
+ci_true         = std(true_curves, 0, 1);
+
+mean_shuf_curve = mean(shuf_curves, 1);
+ci_shuf         = std(shuf_curves, 0, 1);
+
+% Plot aggregate mean curves with CIs
+figure('Color','w','Position',[100 100 600 400]);
+hold on;
+
+% Shuffle ribbon
+fill([xx; flip(xx)], ...
+     [(mean_shuf_curve - ci_shuf(1,:))'; (mean_shuf_curve + ci_shuf(1,:))'], ...
+     [0.8 0.8 0.8], 'EdgeColor','none', 'FaceAlpha',0.3);
+
+% True ribbon
+
+fill([xx; flip(xx)], ...
+     [(mean_true_curve - ci_true(1,:))'; (mean_true_curve + ci_true(1,:))'], ...
+     [1 0.8 0.8], 'EdgeColor','none', 'FaceAlpha',0.5);
+
+
+% Plot mean curves
+plot(xx, mean_shuf_curve, 'Color',[0.5 0.5 0.5], 'LineWidth',1.5);
+plot(xx, mean_true_curve,  'r-', 'LineWidth',2);
+
+xlabel('LanA probability');
+ylabel('P(language-responsive)');
+title('Aggregate Mean Curves with 95% CIs Across 100 Balanced Samples');
+legend('Shuffle 95% CI','True 95% CI','Shuffle mean','True mean','Location','NorthWest');
+ylim([-0.05 1.05]);
+
+%%
+
+% lana_probs: Nx1 LanA probabilities
+% isLang:    Nx1 logical (1=language, 0=non‐language)
+
+nSamplesIter = 1000;    % number of balanced sampling iterations
+fpr_grid     = linspace(0,1,500);
+
+% Preallocate
+rocY_true_samples = nan(nSamplesIter, numel(fpr_grid));
+rocY_shuf_samples = nan(nSamplesIter, numel(fpr_grid));
+auc_true_samples  = nan(nSamplesIter,1);
+auc_shuf_samples  = nan(nSamplesIter,1);
+
+% Indices of each class
+idx_lang    = find(isLang);
+idx_nonlang = find(~isLang);
+nSample     = min(numel(idx_lang), numel(idx_nonlang));
+
+for s = 1:nSamplesIter
+    % Balanced sampling
+    sel_lang = randsample(idx_lang, nSample);
+    sel_non  = randsample(idx_nonlang, nSample);
+    sel_idx  = [sel_lang; sel_non];
+    
+    % True ROC for this sample
+    [fpr_t, tpr_t, ~, auc_t] = perfcurve(isLang(sel_idx), lana_probs(sel_idx), true);
+    [fpr_ut, ia_t] = unique(fpr_t, 'stable');
+    tpr_ut = tpr_t(ia_t);
+    rocY_true_samples(s,:) = interp1(fpr_ut, tpr_ut, fpr_grid, 'linear', 'extrap');
+    auc_true_samples(s)    = auc_t;
+    
+    % Permuted ROC
+    y_shuf = isLang(sel_idx);
+    y_shuf = y_shuf(randperm(numel(y_shuf)));
+    [fpr_p, tpr_p, ~, auc_p] = perfcurve(y_shuf, lana_probs(sel_idx), true);
+    [fpr_up, ia_p] = unique(fpr_p, 'stable');
+    tpr_up = tpr_p(ia_p);
+    rocY_shuf_samples(s,:) = interp1(fpr_up, tpr_up, fpr_grid, 'linear', 'extrap');
+    auc_shuf_samples(s)    = auc_p;
+end
+
+% Compute mean and CI
+mean_tpr_true = mean(rocY_true_samples,1);
+ci_true       = prctile(rocY_true_samples, [2.5,97.5]);
+mean_tpr_shuf = mean(rocY_shuf_samples,1);
+ci_shuf       = prctile(rocY_shuf_samples, [2.5,97.5]);
+mean_auc_true = mean(auc_true_samples);
+p_auc         = mean(auc_shuf_samples >= mean_auc_true);
+
+% Plot
+figure('Color','w','Position',[200 200 600 500]);
+hold on;
+
+% Permutation CI
+fill([fpr_grid, fliplr(fpr_grid)], ...
+     [ci_shuf(1,:), fliplr(ci_shuf(2,:))], ...
+     [0.8 0.8 0.8], 'EdgeColor','none', 'FaceAlpha',0.5);
+
+% True CI
+fill([fpr_grid, fliplr(fpr_grid)], ...
+     [ci_true(1,:), fliplr(ci_true(2,:))], ...
+     [1 0.7 0.7], 'EdgeColor','none', 'FaceAlpha',0.3);
+
+% Mean curves
+plot(fpr_grid, mean_tpr_shuf, '--', 'Color',[0.5 0.5 0.5], 'LineWidth',1.5);
+plot(fpr_grid, mean_tpr_true,  'r-', 'LineWidth',2);
+
+% Chance line
+plot([0 1],[0 1],'k--','LineWidth',1);
+
+xlabel('False positive rate');
+ylabel('True positive rate');
+title(sprintf('ROC with Balanced Sampling CI (mean AUC=%.3f, p=%.3f)', ...
+    mean_auc_true, p_auc));
+legend('Shuffle 95% CI','True 95% CI','Shuffle mean','True mean','Chance','Location','SouthEast');
+ylim([-0.05 1.05]);
+

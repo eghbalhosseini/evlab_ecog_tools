@@ -135,9 +135,9 @@ classdef ecog_data < dynamicprops
         %% methods for making anatomical labels
         function obj=connect_anatomy(obj,ch_RAS_tbl)
             % first check the labels are correct 
-            ch_RAS_tbl.Properties.VariableNames(contains(ch_RAS_tbl.Properties.VariableNames,'Var1'))={'label'};
+            ch_RAS_tbl.Properties.VariableNames(contains(ch_RAS_tbl.Properties.VariableNames,'name'))={'label'};
             % find index of bipolar chan in table
-            bip_ch_=cellfun(@(x) erase(x,'_'),obj.biop_ch_label_valid,'uni',false);
+            bip_ch_=cellfun(@(x) erase(x,'_'),obj.bip_ch_label_valid,'uni',false);
             bip_ch_idx=cell2mat(cellfun(@(x) find(ismember(ch_RAS_tbl.label,x)),bip_ch_,'uni',false));
             % find location of bipolar channels 
             func=@(X) arrayfun(@(x) mean([X(bip_ch_idx(x,2)),X(bip_ch_idx(x,1))]),1:size(bip_ch_idx,1),'uni',false)';
@@ -229,19 +229,20 @@ classdef ecog_data < dynamicprops
             obj.bip_ch_HCP_label=bip_chn_label_HCP;
             obj.bip_ch_HCP_weight=bip_chn_weigth_HCP;
             % add anatomy 
-            icbm_file=load('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/CortexLowRes_15000V.mat');
-            if not(isprop(obj,'icmb152_pial'))
-                P = addprop(obj,'icmb152_pial');
-            end
-            obj.icmb152_pial=icbm_file;
+            % icbm_file=load('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/CortexLowRes_15000V.mat');
+            % if not(isprop(obj,'icmb152_pial'))
+            %     P = addprop(obj,'icmb152_pial');
+            % end
+            % obj.icmb152_pial=icbm_file;
             end 
         function obj=align_with_lang_atlas(obj)
             fprintf('doing something\n')
-            info_parc=niftiinfo('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii');
-            V_parc=niftiread('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/ROIS_NOV2020/Func_Lang_LHRH_SN220/allParcels_language.nii');
-            info_prb=niftiinfo('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/LanA/SPM/LanA_n806.nii');
-            V_prb=niftiread('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/LanA/SPM/LanA_n806.nii');
-            v_mni=niftiread('/Users/eghbalhosseini/MyData/ecog_DNN/annot_electrodes/mni_icbm152_nlin_asym_09b/mni_icbm152_t1_tal_nlin_asym_09b_hires.nii');
+            datapath = '/Volumes/disk/nese/MGH_ECoG_Langloc/language_atlas/ROIS_NOV2020';
+            info_parc=niftiinfo([ datapath '/Func_Lang_LHRH_SN220/allParcels_language.nii']);
+            V_parc=niftiread([datapath '/Func_Lang_LHRH_SN220/allParcels_language.nii']);
+            info_prb=niftiinfo('/Volumes/disk/nese/MGH_ECoG_Langloc/language_atlas/LanA/SPM/LanA_n806.nii');
+            V_prb=niftiread('/Volumes/disk/nese/MGH_ECoG_Langloc/language_atlas/LanA/SPM/LanA_n806.nii');
+            v_mni=niftiread('/Volumes/disk/nese/MGH_ECoG_Langloc/language_atlas/mni_icbm152_nlin_asym_09b/mni_icbm152_t1_tal_nlin_asym_09b_hires.nii');
 %             v = VideoWriter('/Users/eghbalhosseini/Desktop/parc_y.avi');
 %             v.FrameRate=15;
 %             v.Quality=100;
